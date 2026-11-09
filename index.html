@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0e11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Speedo Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one instrument-cluster column — readout on top, engine bay picker below. */
+:root{
+  --bg:#0c0e11; --panel:#15181d; --line:#262b33; --fg:#e9ecf0; --dim:#8b94a0;
+  --amber:#ffb547; --red:#ff4f3f; --ok:#5fd38d; --warn:#f2c14e;
+  --num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;-webkit-tap-highlight-color:transparent}
+body{padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1{font-family:var(--num);font-weight:600;font-size:22px;letter-spacing:.08em;text-transform:uppercase;margin:0}
+.units{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:4px 10px;font:600 13px var(--num);letter-spacing:.08em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 12px var(--num);letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--dim);display:flex;align-items:center;gap:6px}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--dim);display:block}
+.chip.ok i{background:var(--ok)} .chip.warn i{background:var(--warn)} .chip.bad i{background:var(--red)}
+.cluster{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.read{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.speed{font-family:var(--num);font-weight:700;font-size:clamp(84px,24vw,150px);line-height:.82;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.speed small{font-size:16px;font-weight:600;letter-spacing:.1em;color:var(--dim);margin-left:6px}
+.gearbox{text-align:right}
+.gear{font-family:var(--num);font-weight:700;font-size:64px;line-height:.85;color:var(--amber)}
+.rpmtxt{font-family:var(--num);font-size:18px;color:var(--dim);font-variant-numeric:tabular-nums}
+.eng{font-family:var(--num);font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-top:4px}
+.tach{position:relative;height:26px;border-radius:5px;background:#0f1216;overflow:hidden;border:1px solid var(--line)}
+.tach .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#7a5a24,var(--amber))}
+.tach .redz{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,rgba(255,79,63,.35) 0 6px,rgba(255,79,63,.15) 6px 12px)}
+.tach.limit .fill{background:var(--red)}
+.ticks{display:flex;justify-content:space-between;font:600 11px var(--num);color:var(--dim);margin-top:4px;font-variant-numeric:tabular-nums}
+.load{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font:600 11px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.lbar{position:relative;height:8px;background:#0f1216;border-radius:4px;border:1px solid var(--line)}
+.lbar span{position:absolute;top:0;bottom:0;left:50%;width:0;border-radius:3px}
+.lbar .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+button{font-family:var(--body);cursor:pointer}
+.big{grid-column:1/-1;padding:16px;border-radius:12px;border:0;background:var(--amber);color:#1a1205;font:700 20px var(--num);letter-spacing:.1em;text-transform:uppercase}
+.big.on{background:#2a1714;color:var(--red);border:1px solid var(--red)}
+.btn{padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 15px var(--num);letter-spacing:.06em;text-transform:uppercase;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn:active,.btn.held{border-color:var(--amber);color:var(--amber)}
+.btn:disabled{opacity:.4}
+.vol{grid-column:1/-1;display:flex;align-items:center;gap:12px;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.vol input{flex:1;accent-color:var(--amber)}
+h2{font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
+.engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.engines button{text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);display:flex;flex-direction:column;gap:2px;min-width:0}
+.engines button b{font:700 18px var(--num);letter-spacing:.03em}
+.engines button span{font-size:12.5px;color:var(--dim)}
+.engines button em{font-style:normal;font:600 11.5px var(--num);letter-spacing:.06em;color:var(--dim);text-transform:uppercase;margin-top:3px;font-variant-numeric:tabular-nums}
+.engines button[aria-pressed="true"]{border-color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber)}
+.engines button[aria-pressed="true"] b{color:var(--amber)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.note{font-size:13.5px;color:var(--dim);line-height:1.5;max-width:65ch}
+.note b{color:var(--fg);font-weight:600}
+.msg{font-size:14px;color:var(--warn);min-height:1em}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Speedo Engine</h1>
+    <button class="units" id="units" type="button">km/h</button>
+  </header>
+
+  <div class="chips">
+    <div class="chip" id="cGps"><i></i><span>GPS off</span></div>
+    <div class="chip" id="cMot"><i></i><span>Motion off</span></div>
+    <div class="chip" id="cWake"><i></i><span>Screen</span></div>
+    <div class="chip" id="cAud"><i></i><span>Audio off</span></div>
+  </div>
+
+  <section class="cluster" aria-label="Readout">
+    <div class="read">
+      <div class="speed"><span id="spd">0</span><small id="spdU">KM/H</small></div>
+      <div class="gearbox">
+        <div class="gear" id="gear">N</div>
+        <div class="rpmtxt"><span id="rpm">0</span> rpm</div>
+        <div class="eng" id="engName"></div>
+      </div>
+    </div>
+    <div>
+      <div class="tach" id="tach"><div class="redz" id="redz"></div><div class="fill" id="tfill"></div></div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="load">
+      <span>Regen</span>
+      <div class="lbar"><div class="mid"></div><span id="lfill"></span></div>
+      <span>Throttle</span>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button class="big" id="start" type="button">Start engine</button>
+    <button class="btn" id="rev" type="button">Hold to rev</button>
+    <button class="btn" id="demo" type="button">Demo run</button>
+    <button class="btn" id="recal" type="button">Recalibrate</button>
+    <button class="btn" id="test" type="button">Sensor info</button>
+    <label class="vol" for="volume">Volume <input id="volume" type="range" min="0" max="100" value="80"></label>
+  </div>
+  <div class="msg" id="msg" role="status"></div>
+
+  <h2>Engine</h2>
+  <div class="engines" id="engines"></div>
+
+  <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. Don't touch the phone while driving.</p>
+</div>
+
+<script>
+"use strict";
+/* ---------------- Engine presets ---------------- */
+function even(n,cycle){var a=[];for(var i=0;i<n;i++)a.push(i*(cycle||720)/n);return a}
+function off(a,o){return a.map(function(v,i){return v+(o[i]||0)})}
+var CROSS=off(even(8),[0,9,-7,11,0,-9,7,-11]);
+var ENGINES=[
+ {id:"flat6",name:"Flat-6",tag:"911 GT3-style",idle:950,red:9000,fire:even(6),gains:[1,.92,.97,.9,1,.94],jitter:.05,
+  res:[[180,4,1],[620,6,.85],[1500,5,.65],[3200,4,.4]],body:.45,noise:.22,drive:2.3,cut0:1600,cut1:5200,cutL:2600,pops:.15,
+  ratios:[3.75,2.38,1.72,1.34,1.11,.96,.84],final:3.97,accel:4},
+ {id:"v10",name:"V10",tag:"Huracán-style",idle:1000,red:8700,fire:even(10),gains:[1,.95,.98,.93,1,.96,.97,.94,1,.95],jitter:.04,
+  res:[[220,3,1],[900,6,.9],[2100,6,.75],[4200,5,.35]],body:.35,noise:.18,drive:2.6,cut0:1900,cut1:6000,cutL:2800,pops:.2,
+  ratios:[3.13,2.59,1.96,1.57,1.29,1.06,.86],final:3.2,accel:4.5},
+ {id:"v12",name:"V12",tag:"Aventador-style",idle:1000,red:8800,fire:even(12),gains:[1,.97,.99,.96,1,.97,.99,.96,1,.97,.98,.96],jitter:.03,
+  res:[[200,3,1],[760,5,.85],[1800,6,.75],[3700,6,.45]],body:.35,noise:.14,drive:2.1,cut0:2000,cut1:6200,cutL:2400,pops:.12,
+  ratios:[3.91,2.44,1.81,1.46,1.2,.97,.81],final:2.86,accel:4.5},
+ {id:"muscle",name:"Muscle V8",tag:"Mustang-style crossplane",idle:700,red:6800,fire:CROSS,gains:[1,.72,.95,.6,1,.7,.9,.62],jitter:.1,
+  res:[[90,3,1.3],[260,4,.95],[700,5,.55],[1600,4,.28]],body:.8,noise:.3,drive:3,cut0:900,cut1:3000,cutL:2200,pops:.3,
+  ratios:[3.66,2.43,1.69,1.32,1,.65],final:3.55,accel:3.5},
+ {id:"flatv8",name:"Flat-plane V8",tag:"Ferrari-style",idle:1000,red:8500,fire:even(8),gains:[1,.94,.98,.92,1,.95,.97,.93],jitter:.05,
+  res:[[160,3,1],[680,5,.9],[1900,6,.65],[3800,5,.35]],body:.45,noise:.2,drive:2.5,cut0:1700,cut1:5600,cutL:2600,pops:.2,
+  ratios:[3.08,2.19,1.63,1.29,1.03,.84,.69],final:4.44,accel:4},
+ {id:"i6t",name:"Turbo I6",tag:"Supra-style",idle:750,red:7000,fire:even(6),gains:[1,.96,.99,.95,1,.97],jitter:.04,
+  res:[[140,3,1.1],[480,5,.8],[1300,5,.5],[2900,4,.25]],body:.6,noise:.2,drive:2.2,cut0:1100,cut1:3600,cutL:2000,pops:.1,turbo:.4,
+  ratios:[5,3.2,2.14,1.72,1.31,1,.82,.64],final:3.15,accel:3.5},
+ {id:"boxer",name:"Boxer-4 Turbo",tag:"WRX STI-style rumble",idle:800,red:7000,fire:[0,200,360,560],gains:[1,.6,.9,.65],jitter:.12,
+  res:[[110,3,1.3],[330,4,.9],[900,5,.5],[2200,4,.2]],body:.7,noise:.26,drive:2.8,cut0:1000,cut1:3200,cutL:2000,pops:.2,turbo:.35,
+  ratios:[3.64,2.24,1.52,1.14,.97,.76],final:3.9,accel:3.5},
+ {id:"rotary",name:"Rotary",tag:"RX-7-style brap",idle:900,red:8500,cycle:360,fire:[0,180],gains:[1,.92],jitter:.22,
+  res:[[150,2.5,1.2],[520,4,1],[1400,4,.6],[3000,3,.35]],body:.6,noise:.35,drive:3.3,cut0:1300,cut1:4200,cutL:2400,pops:.45,turbo:.2,
+  ratios:[3.48,2.02,1.39,1,.72],final:4.1,accel:3.5},
+ {id:"vtec",name:"VTEC I4",tag:"Civic Type R-style",idle:850,red:8600,fire:even(4),gains:[1,.96,.99,.95],jitter:.05,vtec:5800,
+  res:[[170,3,.9],[560,5,.8],[1600,6,.75],[3400,5,.45]],body:.4,noise:.22,drive:2.4,cut0:1500,cut1:4600,cutL:2200,pops:.15,
+  ratios:[3.27,2.13,1.52,1.15,.92,.74],final:4.35,accel:3.5},
+ {id:"scv8",name:"Supercharged V8",tag:"Hellcat-style whine",idle:750,red:6300,fire:CROSS,gains:[1,.74,.95,.62,1,.72,.9,.64],jitter:.09,
+  res:[[95,3,1.3],[280,4,.95],[750,5,.55],[1700,4,.3]],body:.8,noise:.28,drive:3,cut0:900,cut1:3000,cutL:2300,pops:.25,sc:.45,scRatio:24,
+  ratios:[4.71,3.14,2.1,1.67,1.29,1,.84,.67],final:3.09,accel:4}
+];
+var TIRE_R=0.36;
+
+/* ---------------- Audio worklet (runs on audio thread) ---------------- */
+class EngineCore{
+ constructor(sr){this.sr=sr;this.p=null;this.rpm=800;this.tRpm=800;this.load=0;this.tLoad=0;this.phase=0;this.base=0;this.idx=0;
+  this.pe=0;this.nb=0;this.boost=0;this.bov=0;this.bovF=null;this.wp=0;this.sp=0;this.lp1=0;this.lp2=0;this.body=0;this.dx=0;this.dy=0;this.on=1;this.gain=0;}
+ msg(d){if(d.preset)this.set(d.preset);if(d.rpm!=null)this.tRpm=d.rpm;if(d.load!=null)this.tLoad=d.load;if(d.bov)this.bov=Math.max(this.bov,this.boost);if(d.on!=null)this.on=d.on;}
+ bp(f,q){const w=2*Math.PI*f/this.sr,al=Math.sin(w)/(2*q),a0=1+al;return{b0:al/a0,b2:-al/a0,a1:-2*Math.cos(w)/a0,a2:(1-al)/a0,x1:0,x2:0,y1:0,y2:0};}
+ run(r,x){const y=r.b0*x+r.b2*r.x2-r.a1*r.y1-r.a2*r.y2;r.x2=r.x1;r.x1=x;r.y2=r.y1;r.y1=y;return y;}
+ set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});this.bovF=this.bp(2600,3);this.idx=0;this.base=0;this.phase=0;}
+ fire(k){const p=this.p,ld=Math.max(this.load,0),off=Math.max(-this.load,0),rn=this.rpm/p.red;
+  const rate=this.rpm/60*p.fire.length*360/this.cycle;let a=p.gains[k%p.gains.length]*(0.32+0.68*ld)*(1+p.jitter*(Math.random()*2-1)*(1.4-rn));
+  a/=Math.sqrt(1+rate/150);this.pe+=a;this.nb=Math.max(this.nb,a);
+  if(off>0.2&&rn>0.35&&Math.random()<p.pops*off*0.55){this.pe+=a*(2+Math.random()*3);this.nb+=1.2+Math.random();}}
+ render(ch){const N=ch.length,sr=this.sr,p=this.p;
+  if(!p){ch.fill(0);return;}
+  const ks=1-Math.exp(-1/(0.03*sr)),kl=1-Math.exp(-1/(0.06*sr)),pd=Math.exp(-1/(0.0012*sr)),nd=Math.exp(-1/(0.0022*sr)),bd=Math.exp(-1/(0.35*sr));
+  const rn0=this.rpm/p.red,ld0=Math.max(this.load,0);let fc=p.cut0+p.cut1*rn0+p.cutL*ld0;let vt=1;
+  if(p.vtec&&this.rpm>p.vtec){fc+=2600;vt=1.2;}fc=Math.min(fc,sr*0.45);
+  const lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*220/sr);
+  for(let i=0;i<N;i++){
+   this.rpm+=(this.tRpm-this.rpm)*ks;this.load+=(this.tLoad-this.load)*kl;
+   const ld=Math.max(this.load,0),rn=this.rpm/p.red;
+   this.phase+=this.rpm/60*360/sr;
+   let tgt=p.fire[this.idx]+this.base;let guard=0;
+   while(this.phase>=tgt&&guard++<8){this.fire(this.idx);this.idx++;if(this.idx>=p.fire.length){this.idx=0;this.base+=this.cycle;}tgt=p.fire[this.idx]+this.base;}
+   if(this.base>1e7){this.phase-=this.base;this.base=0;}
+   const nz=Math.random()*2-1;
+   const x=this.pe+nz*this.nb*p.noise;this.pe*=pd;this.nb*=nd;
+   let s=0;for(const r of this.res)s+=r.g*this.run(r,x);
+   this.body+=(x-this.body)*bc;s+=this.body*p.body*3;
+   this.lp1+=(s-this.lp1)*lc;this.lp2+=(this.lp1-this.lp2)*lc;
+   let y=Math.tanh(this.lp2*p.drive*vt*(0.6+0.6*ld))*0.5;
+   if(p.turbo){const bt=ld*Math.min(Math.max((rn-0.25)/0.4,0),1);this.boost+=(bt-this.boost)*(bt>this.boost?1/(0.7*sr):1/(0.25*sr));
+    this.wp+=(1400+5200*this.boost)/sr;if(this.wp>1)this.wp-=1;y+=Math.sin(2*Math.PI*this.wp)*p.turbo*this.boost*this.boost*0.12;
+    if(this.bov>0.01){y+=this.run(this.bovF,nz)*this.bov*p.turbo*1.4;this.bov*=bd;}}
+   if(p.sc){this.sp+=this.rpm/60*p.scRatio/sr;if(this.sp>1)this.sp-=1;const ph=2*Math.PI*this.sp;
+    y+=(Math.sin(ph)+0.3*Math.sin(2*ph))*p.sc*rn*(0.35+0.65*ld)*0.1;}
+   const m=(0.35+0.45*ld+0.25*rn)*this.on;this.gain+=(m-this.gain)*0.0005;y*=this.gain;
+   const dc=y-this.dx+0.995*this.dy;this.dx=y;this.dy=dc;ch[i]=dc;}}
+}
+var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProcessor{constructor(){super();this.c=new EngineCore(sampleRate);this.port.onmessage=e=>this.c.msg(e.data);}process(i,o){const out=o[0];if(!out||!out[0])return true;this.c.render(out[0]);for(let k=1;k<out.length;k++)out[k].set(out[0]);return true;}}\nregisterProcessor('engine-proc',EngineProc);";
+
+/* ---------------- State ---------------- */
+var $=function(id){return document.getElementById(id)};
+var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
+ lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0};
+var ctx=null,node=null,vol=null;
+
+function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
+function load(k,d){try{var v=localStorage.getItem("speedoEngine."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
+
+/* ---------------- Vector helpers ---------------- */
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
+function nrm(a){return Math.hypot(a[0],a[1],a[2])}
+function scl(a,k){return[a[0]*k,a[1]*k,a[2]*k]}
+function clamp(x,a,b){return x<a?a:x>b?b:x}
+function calibrated(){return !!S.fwd&&S.cal>=2}
+
+/* ---------------- Motion sensors ---------------- */
+function onMotion(e){
+  var now=performance.now(),dt=S.lastMotionT?(now-S.lastMotionT)/1000:0;S.lastMotionT=now;if(dt>0.2)dt=0.2;
+  var g=e.accelerationIncludingGravity;if(!g||g.x==null)return;
+  var G=[g.x,g.y,g.z];
+  if(!S.gLP)S.gLP=G.slice();else for(var k=0;k<3;k++)S.gLP[k]+=(G[k]-S.gLP[k])*0.02;
+  var a=e.acceleration,la=(a&&a.x!=null)?[a.x,a.y,a.z]:[G[0]-S.gLP[0],G[1]-S.gLP[1],G[2]-S.gLP[2]];
+  var gn=nrm(S.gLP);if(gn<1)return;var gu=scl(S.gLP,1/gn);
+  var d=dot(la,gu),lh=[la[0]-d*gu[0],la[1]-d*gu[1],la[2]-d*gu[2]];
+  var rr=e.rotationRate,rm=rr?Math.hypot(rr.alpha||0,rr.beta||0,rr.gamma||0):0;
+  if(rm>S.gyroMax)S.gyroMax=rm;
+  S.acc[0]+=lh[0];S.acc[1]+=lh[1];S.acc[2]+=lh[2];S.cnt++;S.motionSeen=true;
+  if(calibrated()){
+    // Fwd acceleration from the phone, cornering projected out; gyro spikes (bumps) damped.
+    var af=dot(lh,S.fwd)*(rm>60?0.5:1);
+    S.aF+=(af-S.aF)*0.25;
+    if(!S.demo&&dt>0){S.v=Math.max(0,S.v+(S.aF-S.bias)*dt);}
+  }
+}
+
+/* ---------------- GPS ---------------- */
+function hav(a,b,c,d){var R=6371000,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)*Math.sin(y/2);return 2*R*Math.asin(Math.sqrt(h))}
+function histAt(t){var h=S.hist;if(!h.length)return null;for(var i=h.length-1;i>=0;i--)if(h[i].t<=t)return h[i].v;return h[0].v}
+function onGPS(pos){
+  var c=pos.coords;S.gpsAcc=c.accuracy;
+  if(!(c.accuracy<=30)){S.gpsOK=false;return}
+  S.gpsOK=true;
+  var now=performance.now(),tFix=now-clamp(Date.now()-pos.timestamp,0,1500);
+  var s=(c.speed!=null&&!isNaN(c.speed)&&c.speed>=0)?c.speed:null;
+  var L=S.lastFix;
+  if(s==null&&L){var dtp=(pos.timestamp-L.ts)/1000;if(dtp>0.3)s=hav(L.lat,L.lon,c.latitude,c.longitude)/dtp;}
+  if(s!=null&&L&&L.s!=null){
+    var dtg=(tFix-L.t)/1000;
+    if(dtg>0.2&&dtg<5){
+      var aG=clamp((s-L.s)/dtg,-9,9);
+      if(Math.abs(aG-S.aGPS)>6)aG=S.aGPS; // reject jumps (bridges, tunnels)
+      S.aGPS+=(aG-S.aGPS)*0.6;
+      // Learn which way is "forward" for the phone: match the felt push with GPS speed change.
+      if(S.cnt>5&&Math.abs(aG)>0.7&&S.gyroMax<20){
+        var m=scl(S.acc,1/S.cnt),mn=nrm(m);
+        if(mn>0.25){var est=scl(m,(aG>0?1:-1)/mn);
+          if(!S.fwd)S.fwd=est;else{var b=[S.fwd[0]*.75+est[0]*.25,S.fwd[1]*.75+est[1]*.25,S.fwd[2]*.75+est[2]*.25];S.fwd=scl(b,1/nrm(b));}
+          S.cal++;store("fwd",{f:S.fwd,c:Math.min(S.cal,3)});}
+      }
+      if(!S.demo){
+        var vAt=histAt(tFix);if(vAt==null)vAt=S.v;
+        var innov=s-vAt,K=calibrated()?0.45:0.85;
+        S.v=Math.max(0,S.v+K*innov);
+        if(calibrated())S.bias=clamp(S.bias-0.08*innov/Math.max(dtg,0.5),-1.5,1.5);
+      }
+    }
+  }else if(s!=null&&!S.demo){S.v=s;}
+  if(s!=null&&s<0.4&&Math.abs(S.aF)<0.3&&!S.demo)S.v=0;
+  S.acc=[0,0,0];S.cnt=0;S.gyroMax=0;
+  S.lastFix={t:tFix,ts:pos.timestamp,lat:c.latitude,lon:c.longitude,s:s};
+}
+function onGPSErr(e){S.gpsOK=false;if(e&&e.code===1)say("Location is blocked. Allow location for this site in your browser settings.")}
+
+/* ---------------- Engine model ---------------- */
+function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.final}
+function stepEngine(dt){
+  var E=S.eng,v=S.v,a=S.aLoad;
+  S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
+  var thr=clamp(a/E.accel,0,1),offT=clamp(-a/2.2,0,1);
+  var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
+  var load=thr>0.03?Math.max(thr,cruise):(offT>0.08?-offT:cruise*0.6);
+  var rpm;
+  if(v<0.6&&thr<0.05){ // parked / stopped: idle, free-rev with the button
+    S.gear=0;rpm=E.idle+S.revHold*(E.red*0.88-E.idle);load=Math.max(load,S.revHold);
+    rpm+=Math.sin(performance.now()/180)*E.idle*0.015;
+  }else{
+    if(S.gear<1)S.gear=1;
+    var n=E.ratios.length,r=rpmAt(v,S.gear);
+    var up=Math.min(E.idle+(E.red-E.idle)*(0.3+0.62*thr),E.red-150);
+    if(S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;}
+    else if(S.shiftT<=0&&S.gear>1){var dn=E.idle*1.25+thr*E.red*0.3;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=0.22;S.shiftKind=-1;}}
+    rpm=rpmAt(v,S.gear);
+    if(S.gear===1&&v<6)rpm=Math.max(rpm,E.idle+thr*E.red*0.42); // clutch slip on launch
+    rpm=Math.max(rpm,E.idle*0.95);
+    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else load=Math.max(load,0.55);}
+  }
+  if(rpm>=E.red-100){S.limT+=dt;if((S.limT*14|0)%2)rpm=E.red-350;else rpm=E.red-60;load=Math.min(load,0.6)}else S.limT=0;
+  if(E.turbo&&S.prevLoad>0.55&&load<0.1&&S.rpm>E.red*0.4&&node)node.port.postMessage({bov:1});
+  S.prevLoad=load;S.rpm=rpm;S.load=load;
+}
+
+/* ---------------- Demo run (parked test) ---------------- */
+function demoStep(dt){
+  var d=S.demo;d.t+=dt;var a;
+  if(d.t<1.2)a=0;else if(d.phase===0){a=4.8;if(S.v>34)d.phase=1,d.t2=d.t;}
+  else if(d.phase===1){a=0;if(d.t-d.t2>2.5)d.phase=2;}
+  else{a=-2.6;if(S.v<=0){S.demo=null;$("demo").textContent="Demo run";return}}
+  S.v=Math.max(0,S.v+a*dt);S.aF=a;S.aLoad=a;
+}
+
+/* ---------------- Main loop ---------------- */
+var lastT=0;
+function frame(t){
+  var dt=lastT?Math.min((t-lastT)/1000,0.1):0.016;lastT=t;
+  if(S.demo)demoStep(dt);
+  else{
+    if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
+    var src=calibrated()?S.aF-S.bias:S.aGPS;
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/0.12);
+  }
+  S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
+  stepEngine(dt);
+  if(node)node.port.postMessage({rpm:S.rpm,load:S.load});
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- UI ---------------- */
+function chip(id,cls,txt){var c=$(id);c.className="chip "+cls;c.lastElementChild.textContent=txt}
+function say(t){$("msg").textContent=t||""}
+function buildTicks(){
+  var E=S.eng,n=Math.ceil(E.red/1000),h="";for(var i=0;i<=n;i++)h+="<span>"+i+"</span>";$("ticks").innerHTML=h;
+  var top=n*1000;$("redz").style.width=((top-E.red+500)/top*100)+"%";$("engName").textContent=E.name;
+}
+function render(){
+  var E=S.eng,top=Math.ceil(E.red/1000)*1000;
+  var sp=S.mph?S.v*2.23694:S.v*3.6;$("spd").textContent=Math.round(sp);
+  $("gear").textContent=S.gear?String(S.gear):"N";
+  $("rpm").textContent=String(Math.round(S.rpm/50)*50);
+  $("tfill").style.width=clamp(S.rpm/top*100,0,100)+"%";
+  $("tach").classList.toggle("limit",S.rpm>E.red-400);
+  var lf=$("lfill"),l=clamp(S.load,-1,1);
+  if(l>=0){lf.style.left="50%";lf.style.width=(l*50)+"%";lf.style.background="var(--amber)"}
+  else{lf.style.left=(50+l*50)+"%";lf.style.width=(-l*50)+"%";lf.style.background="var(--ok)"}
+  if(!S.running){chip("cGps","","GPS off");chip("cMot","","Motion off");chip("cAud",S.demo||ctx?"ok":"","Audio "+(ctx&&ctx.state==="running"?"on":"off"));chip("cWake",S.awake?"ok":"",S.awake?"Screen awake":"Screen");return}
+  chip("cGps",S.gpsAcc==null?"warn":S.gpsOK?"ok":"bad",S.gpsAcc==null?"GPS searching":"GPS ±"+Math.round(S.gpsAcc)+" m");
+  chip("cMot",!S.motionSeen?"bad":calibrated()?"ok":"warn",!S.motionSeen?"No motion data":calibrated()?"Motion locked":"Motion: drive to calibrate");
+  chip("cWake",S.awake?"ok":"warn",S.awake?"Screen awake":"Screen may sleep");
+  chip("cAud",ctx&&ctx.state==="running"?"ok":"bad","Audio "+(ctx&&ctx.state==="running"?"on":ctx?ctx.state:"off"));
+}
+function buildEngines(){
+  var box=$("engines");box.innerHTML="";
+  ENGINES.forEach(function(E){
+    var b=document.createElement("button");b.type="button";b.id="eng-"+E.id;
+    b.innerHTML="<b></b><span></span><em></em>";
+    b.children[0].textContent=E.name;b.children[1].textContent=E.tag;
+    b.children[2].textContent=(E.fire.length===2&&E.cycle===360?"2 rotors":E.fire.length+" cyl")+" · "+E.red.toLocaleString()+" rpm"+(E.turbo?" · turbo":"")+(E.sc?" · supercharged":"")+(E.vtec?" · VTEC":"");
+    b.setAttribute("aria-pressed",String(E===S.eng));
+    b.onclick=function(){pick(E)};box.appendChild(b);
+  });
+}
+function pick(E){
+  S.eng=E;store("engine",E.id);S.gear=S.gear?1:0;
+  ENGINES.forEach(function(x){$("eng-"+x.id).setAttribute("aria-pressed",String(x===E))});
+  buildTicks();if(node)node.port.postMessage({preset:E});
+}
+
+/* ---------------- Audio + sensors start ---------------- */
+async function ensureAudio(){
+  if(ctx){if(ctx.state!=="running")await ctx.resume();return}
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){} // play even with iPhone silent switch on
+  var AC=window.AudioContext||window.webkitAudioContext;ctx=new AC({latencyHint:"interactive"});
+  var out;
+  try{
+    if(!ctx.audioWorklet)throw new Error("no worklet");
+    var url=URL.createObjectURL(new Blob([WORKLET],{type:"application/javascript"}));
+    await ctx.audioWorklet.addModule(url);
+    out=node=new AudioWorkletNode(ctx,"engine-proc",{outputChannelCount:[2]});
+  }catch(err){
+    // Fallback when the page blocks worklets (previews, older browsers): same engine on the main thread.
+    var core=new EngineCore(ctx.sampleRate),sp=ctx.createScriptProcessor(1024,0,2);
+    sp.onaudioprocess=function(ev){var b=ev.outputBuffer,c0=b.getChannelData(0);core.render(c0);for(var k=1;k<b.numberOfChannels;k++)b.getChannelData(k).set(c0)};
+    node={port:{postMessage:function(d){core.msg(d)}}};out=sp;
+  }
+  vol=ctx.createGain();vol.gain.value=Math.pow($("volume").value/100,1.6);
+  var comp=ctx.createDynamicsCompressor();comp.threshold.value=-10;comp.ratio.value=4;
+  out.connect(vol);vol.connect(comp);comp.connect(ctx.destination);
+  node.port.postMessage({preset:S.eng});
+  await ctx.resume();
+}
+async function keepAwake(){
+  try{if("wakeLock" in navigator){S.wl=await navigator.wakeLock.request("screen");S.awake=true;
+    S.wl.addEventListener("release",function(){S.awake=false})}}catch(e){S.awake=false}
+}
+async function start(){
+  say("");
+  // Motion permission must be asked first, inside the tap (iPhone).
+  var mp=(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==="function")?DeviceMotionEvent.requestPermission().catch(function(){return"denied"}):Promise.resolve("granted");
+  try{await ensureAudio()}catch(e){say("Couldn't start audio: "+e.message);return}
+  var perm=await mp;
+  if(perm==="granted")window.addEventListener("devicemotion",onMotion);
+  else say("Motion access was declined, so the sound will follow GPS only (about 1 s behind). Reload and allow Motion for faster response.");
+  if(!window.isSecureContext)say("Open this page over https:// — browsers block GPS and motion on plain http.");
+  if(navigator.geolocation)S.watch=navigator.geolocation.watchPosition(onGPS,onGPSErr,{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+  else say("This browser has no GPS access.");
+  await keepAwake();
+  S.running=true;if(node)node.port.postMessage({on:1});
+  $("start").textContent="Stop engine";$("start").classList.add("on");
+}
+function stop(){
+  S.running=false;window.removeEventListener("devicemotion",onMotion);
+  if(S.watch!=null&&navigator.geolocation)navigator.geolocation.clearWatch(S.watch);S.watch=null;
+  if(S.wl){S.wl.release().catch(function(){});S.wl=null}S.awake=false;
+  if(node)node.port.postMessage({on:0});S.demo=null;S.v=0;
+  $("start").textContent="Start engine";$("start").classList.remove("on");$("demo").textContent="Demo run";
+}
+
+/* ---------------- Wire up ---------------- */
+$("start").onclick=function(){S.running?stop():start()};
+var rev=$("rev");
+function revOn(e){e.preventDefault();S.revTarget=1;rev.classList.add("held");if(!S.running&&!ctx)ensureAudio().then(function(){node&&node.port.postMessage({on:1})}).catch(function(){})}
+function revOff(){S.revTarget=0;rev.classList.remove("held")}
+rev.addEventListener("pointerdown",revOn);rev.addEventListener("pointerup",revOff);rev.addEventListener("pointercancel",revOff);rev.addEventListener("pointerleave",revOff);
+$("demo").onclick=async function(){
+  if(S.demo){S.demo=null;S.v=0;this.textContent="Demo run";return}
+  try{await ensureAudio();node&&node.port.postMessage({on:1})}catch(e){say("Couldn't start audio: "+e.message);return}
+  S.demo={t:0,phase:0};S.v=0;S.gear=0;this.textContent="Stop demo";
+};
+$("recal").onclick=function(){S.fwd=null;S.cal=0;S.bias=0;S.aF=0;store("fwd",null);say("Calibration cleared. Pull away normally for a few seconds to relock.")};
+$("test").onclick=function(){
+  var f=S.fwd?S.fwd.map(function(x){return x.toFixed(2)}).join(", "):"not yet";
+  say("Speed "+(S.v*3.6).toFixed(1)+" km/h · GPS accel "+S.aGPS.toFixed(2)+" · sensor accel "+S.aF.toFixed(2)+" m/s² · bias "+S.bias.toFixed(2)+" · forward axis "+f+" ("+S.cal+" locks)");
+};
+$("volume").oninput=function(){store("vol",+this.value);if(vol)vol.gain.setTargetAtTime(Math.pow(this.value/100,1.6),ctx.currentTime,0.05)};
+$("units").onclick=function(){S.mph=!S.mph;store("mph",S.mph);this.textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H"};
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.running){keepAwake();if(ctx)ctx.resume()}});
+
+/* restore */
+(function(){
+  var id=load("engine",null);S.eng=ENGINES.filter(function(E){return E.id===id})[0]||ENGINES[0];
+  $("volume").value=load("vol",80);S.mph=!!load("mph",false);$("units").textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H";
+  var f=load("fwd",null);if(f&&f.f){S.fwd=f.f;S.cal=f.c||2}
+  buildEngines();buildTicks();render();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
