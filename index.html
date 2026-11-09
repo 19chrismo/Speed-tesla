@@ -54,6 +54,11 @@ button{font-family:var(--body);cursor:pointer}
 .btn:disabled{opacity:.4}
 .vol{grid-column:1/-1;display:flex;align-items:center;gap:12px;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
 .vol input{flex:1;accent-color:var(--amber)}
+.sync{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 12px;align-items:center;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.sync input{min-width:0;accent-color:var(--amber)}
+.sync output{color:var(--fg);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:right}
+.sync .hint{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;font-size:11px;letter-spacing:.04em;text-transform:none;font-family:var(--body);font-weight:500}
+.btn.small{padding:7px 12px;font-size:13px}
 h2{font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
 .engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .engines button{text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -110,6 +115,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
     <button class="btn" id="recal" type="button">Recalibrate</button>
     <button class="btn" id="test" type="button">Sensor info</button>
     <label class="vol" for="volume">Volume <input id="volume" type="range" min="0" max="100" value="80"></label>
+    <div class="sync">
+      <label for="sync">Sync</label>
+      <input id="sync" type="range" min="-800" max="400" step="20" value="-200">
+      <output id="syncV" for="sync">−200 ms</output>
+      <button class="btn small" id="syncAuto" type="button">Auto</button>
+      <div class="hint"><span>◀ Sound earlier (sound feels late)</span><span>Sound later ▶</span></div>
+    </div>
   </div>
   <div class="msg" id="msg" role="status"></div>
 
@@ -204,7 +216,7 @@ var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProces
 var $=function(id){return document.getElementById(id)};
 var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
  lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
- eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0};
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,sync:-200,q:[]};
 var ctx=null,node=null,vol=null;
 
 function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
@@ -278,7 +290,9 @@ function onGPSErr(e){S.gpsOK=false;if(e&&e.code===1)say("Location is blocked. Al
 /* ---------------- Engine model ---------------- */
 function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.final}
 function stepEngine(dt){
-  var E=S.eng,v=S.v,a=S.aLoad;
+  var E=S.eng,a=S.aLoad,lead=S.sync<0?-S.sync/1000:0;
+  // Look ahead: where the car's speed will be by the time this sound reaches your ears.
+  var v=S.v<0.3&&a<0.3?S.v:Math.max(0,S.v+a*lead);
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
   var thr=clamp(a/E.accel,0,1),offT=clamp(-a/2.2,0,1);
   var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
@@ -320,11 +334,17 @@ function frame(t){
   else{
     if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
     var src=calibrated()?S.aF-S.bias:S.aGPS;
-    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/0.12);
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/(calibrated()?0.06:0.12));
   }
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
   stepEngine(dt);
-  if(node)node.port.postMessage({rpm:S.rpm,load:S.load});
+  var outR=S.rpm,outL=S.load;
+  if(S.sync>0){ // hold the sound back
+    S.q.push({t:t,r:S.rpm,l:S.load});
+    while(S.q.length>1&&S.q[1].t<=t-S.sync)S.q.shift();
+    if(S.q[0].t<=t-S.sync){outR=S.q[0].r;outL=S.q[0].l}else{outR=S.q[0].r;outL=S.q[0].l}
+  }else if(S.q.length)S.q=[];
+  if(node)node.port.postMessage({rpm:outR,load:outL});
   render();
   requestAnimationFrame(frame);
 }
@@ -436,6 +456,16 @@ $("test").onclick=function(){
   say("Speed "+(S.v*3.6).toFixed(1)+" km/h · GPS accel "+S.aGPS.toFixed(2)+" · sensor accel "+S.aF.toFixed(2)+" m/s² · bias "+S.bias.toFixed(2)+" · forward axis "+f+" ("+S.cal+" locks)");
 };
 $("volume").oninput=function(){store("vol",+this.value);if(vol)vol.gain.setTargetAtTime(Math.pow(this.value/100,1.6),ctx.currentTime,0.05)};
+function setSync(ms,save){S.sync=ms;$("sync").value=ms;$("syncV").textContent=(ms<0?"−":ms>0?"+":"")+Math.abs(ms)+" ms";if(save)store("sync",ms)}
+$("sync").oninput=function(){setSync(+this.value,true)};
+$("syncAuto").onclick=async function(){
+  try{await ensureAudio()}catch(e){}
+  var lat=ctx?((ctx.outputLatency||0)+(ctx.baseLatency||0)):0;
+  // Sensor + smoothing delay is about 120 ms; Bluetooth adds 150-250 ms but browsers often don't report it.
+  var ms=-Math.round((0.12+(lat>0.05?lat:0.2))*1000/20)*20;
+  setSync(clamp(ms,-800,0),true);
+  say("Sync set to "+$("syncV").textContent+(lat>0.05?" (measured audio delay "+Math.round(lat*1000)+" ms).":" (estimated; fine-tune with the slider)."));
+};
 $("units").onclick=function(){S.mph=!S.mph;store("mph",S.mph);this.textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H"};
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.running){keepAwake();if(ctx)ctx.resume()}});
 
@@ -443,6 +473,7 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
 (function(){
   var id=load("engine",null);S.eng=ENGINES.filter(function(E){return E.id===id})[0]||ENGINES[0];
   $("volume").value=load("vol",80);S.mph=!!load("mph",false);$("units").textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H";
+  setSync(load("sync",-200),false);
   var f=load("fwd",null);if(f&&f.f){S.fwd=f.f;S.cal=f.c||2}
   buildEngines();buildTicks();render();requestAnimationFrame(frame);
 })();
