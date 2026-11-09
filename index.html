@@ -204,7 +204,7 @@ var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProces
 var $=function(id){return document.getElementById(id)};
 var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
  lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
- eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0};
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,pend:0,vs:0,lastShift:0};
 var ctx=null,node=null,vol=null;
 
 function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
@@ -231,7 +231,7 @@ function onMotion(e){
   S.acc[0]+=lh[0];S.acc[1]+=lh[1];S.acc[2]+=lh[2];S.cnt++;S.motionSeen=true;
   if(calibrated()){
     // Fwd acceleration from the phone, cornering projected out; gyro spikes (bumps) damped.
-    var af=dot(lh,S.fwd)*(rm>60?0.5:1);
+    var af=clamp(dot(lh,S.fwd),-7,7)*(rm>60?0.3:1); // potholes and bumps are spikes, not throttle
     S.aF+=(af-S.aF)*0.25;
     if(!S.demo&&dt>0){S.v=Math.max(0,S.v+(S.aF-S.bias)*dt);}
   }
@@ -264,12 +264,12 @@ function onGPS(pos){
       if(!S.demo){
         var vAt=histAt(tFix);if(vAt==null)vAt=S.v;
         var innov=s-vAt,K=calibrated()?0.45:0.85;
-        S.v=Math.max(0,S.v+K*innov);
+        S.pend=K*innov; // fed in gradually by the main loop
         if(calibrated())S.bias=clamp(S.bias-0.08*innov/Math.max(dtg,0.5),-1.5,1.5);
       }
     }
   }else if(s!=null&&!S.demo){S.v=s;}
-  if(s!=null&&s<0.4&&Math.abs(S.aF)<0.3&&!S.demo)S.v=0;
+  if(s!=null&&s<0.4&&Math.abs(S.aF)<0.3&&!S.demo){S.v=0;S.pend=0}
   S.acc=[0,0,0];S.cnt=0;S.gyroMax=0;
   S.lastFix={t:tFix,ts:pos.timestamp,lat:c.latitude,lon:c.longitude,s:s};
 }
@@ -278,11 +278,12 @@ function onGPSErr(e){S.gpsOK=false;if(e&&e.code===1)say("Location is blocked. Al
 /* ---------------- Engine model ---------------- */
 function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.final}
 function stepEngine(dt){
-  var E=S.eng,v=S.v,a=S.aLoad;
+  var E=S.eng,v=S.vs,a=S.aLoad;
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
-  var thr=clamp(a/E.accel,0,1),offT=clamp(-a/2.2,0,1);
+  var aa=a>0?Math.max(a-0.2,0):Math.min(a+0.2,0); // dead zone: sensor jitter isn't throttle or regen
+  var thr=clamp(aa/E.accel,0,1),offT=clamp(-aa/2.2,0,1);
   var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
-  var load=thr>0.03?Math.max(thr,cruise):(offT>0.08?-offT:cruise*0.6);
+  var load=cruise*(1-offT)+thr*(1-cruise)-offT*0.9; // one smooth curve: regen, cruise, throttle
   var rpm;
   if(v<0.6&&thr<0.05){ // parked / stopped: idle, free-rev with the button
     S.gear=0;rpm=E.idle+S.revHold*(E.red*0.88-E.idle);load=Math.max(load,S.revHold);
@@ -291,12 +292,13 @@ function stepEngine(dt){
     if(S.gear<1)S.gear=1;
     var n=E.ratios.length,r=rpmAt(v,S.gear);
     var up=Math.min(E.idle+(E.red-E.idle)*(0.3+0.62*thr),E.red-150);
-    if(S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;}
-    else if(S.shiftT<=0&&S.gear>1){var dn=E.idle*1.25+thr*E.red*0.3;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=0.22;S.shiftKind=-1;}}
+    var now=performance.now(),ok=now-S.lastShift>900; // no gear hunting
+    if(ok&&S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;S.lastShift=now;}
+    else if(ok&&S.shiftT<=0&&S.gear>1){var dn=thr>0.3?E.idle*1.25+thr*E.red*0.3:E.idle*1.15;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=thr>0.3?0.22:0.08;S.shiftKind=thr>0.3?-1:0;S.lastShift=now;}}
     rpm=rpmAt(v,S.gear);
     if(S.gear===1&&v<6)rpm=Math.max(rpm,E.idle+thr*E.red*0.42); // clutch slip on launch
     rpm=Math.max(rpm,E.idle*0.95);
-    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else load=Math.max(load,0.55);}
+    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else if(S.shiftKind<0)load=Math.max(load,0.55);}
   }
   if(rpm>=E.red-100){S.limT+=dt;if((S.limT*14|0)%2)rpm=E.red-350;else rpm=E.red-60;load=Math.min(load,0.6)}else S.limT=0;
   if(E.turbo&&S.prevLoad>0.55&&load<0.1&&S.rpm>E.red*0.4&&node)node.port.postMessage({bov:1});
@@ -319,9 +321,11 @@ function frame(t){
   if(S.demo)demoStep(dt);
   else{
     if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
+    if(S.pend){var sh=S.pend*Math.min(1,dt/0.5);S.v=Math.max(0,S.v+sh);S.pend-=sh;if(Math.abs(S.pend)<0.01)S.pend=0}
     var src=calibrated()?S.aF-S.bias:S.aGPS;
-    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/0.12);
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/(src<S.aLoad?0.2:0.1)); // regen builds gradually
   }
+  S.vs+=(S.v-S.vs)*Math.min(1,dt/0.15); // steady speed for pitch and display
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
   stepEngine(dt);
   if(node)node.port.postMessage({rpm:S.rpm,load:S.load});
@@ -338,7 +342,7 @@ function buildTicks(){
 }
 function render(){
   var E=S.eng,top=Math.ceil(E.red/1000)*1000;
-  var sp=S.mph?S.v*2.23694:S.v*3.6;$("spd").textContent=Math.round(sp);
+  var sp=S.mph?S.vs*2.23694:S.vs*3.6;$("spd").textContent=Math.round(sp);
   $("gear").textContent=S.gear?String(S.gear):"N";
   $("rpm").textContent=String(Math.round(S.rpm/50)*50);
   $("tfill").style.width=clamp(S.rpm/top*100,0,100)+"%";
