@@ -71,6 +71,8 @@ h2{font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:
 .file em{font-style:normal;font-size:13px;color:var(--amber)}
 .rpms{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px;color:var(--dim)}
 .rpms input{width:5.5em;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:#0f1216;color:var(--fg);font:600 15px var(--num)}
+.classic summary{cursor:pointer;font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding:6px 0}
+.classic .engines{margin-top:8px}
 .engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .engines button{text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);display:flex;flex-direction:column;gap:2px;min-width:0}
 .engines button b{font:700 18px var(--num);letter-spacing:.03em}
@@ -155,10 +157,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
     <p class="note"><b>Where to get one:</b> search freesound.org for "engine rev" and pick a CC0 or CC-BY clip of a single smooth rev from idle to high rpm, or record a car revving in neutral with your phone near the exhaust. 5–15 seconds is ideal. The page measures how the pitch rises, so the sound follows your speed at the right pitch. Your files stay on this phone.</p>
   </div>
 
+  <h2>Electric sport</h2>
+  <div class="engines" id="sport"></div>
   <h2>Futuristic</h2>
   <div class="engines" id="evs"></div>
-  <h2>Engines</h2>
-  <div class="engines" id="engines"></div>
+  <details class="classic"><summary>Classic engines (synth)</summary>
+  <div class="engines" id="engines"></div></details>
 
   <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. For exhaust-behind-you sound, move the car's audio fade toward the rear speakers. Don't touch the phone while driving.</p>
 </div>
@@ -209,6 +213,16 @@ var EVS=[
  {id:"maglev",name:"Mag-Lev",tag:"Smooth electric hum",f0:180,fTop:1400,parts:[[1,1,"s"],[4,.15,"s"]],fm:[2,1.2],det:2,sub:.3,noise:.03,nb:5,cut0:2000,cutL:2000,cutR:3000,q:.1},
  {id:"starship",name:"Starship",tag:"Huge low thrum and shimmer",f0:40,fTop:200,parts:[[1,1,"w"],[2.005,.5,"w"],[5.01,.12,"s"],[7.03,.08,"s"]],det:18,vib:[.15,.02],sub:1,noise:.12,nb:20,cut0:250,cutL:2000,cutR:2500,q:.6}
 ];
+var SPORT=[
+ {id:"esport",name:"Electric Sport",tag:"Taycan-style interior sound",f0:70,fTop:420,parts:[[1,1,"w"],[1.5,.35,"s"],[2,.4,"w",1],[3,.18,"s",1]],det:7,vib:[4,.002],sub:.6,noise:.04,nb:6,cut0:500,cutL:2600,cutR:2200,q:.55,regen:[2,.3]},
+ {id:"rallye",name:"Rally E",tag:"Gritty rally-inspired buzz",f0:60,fTop:480,parts:[[1,1,"q"],[2,.5,"w"],[3,.25,"w",1]],det:10,sub:.5,drive:2.5,am:[.25,.5],noise:.15,nb:3,cut0:700,cutL:4000,cutR:2500,q:.45,crackle:.6,regen:[1.5,.25]},
+ {id:"hyper",name:"Hyper EV",tag:"Hypercar chord that climbs",f0:90,fTop:720,parts:[[1,1,"w"],[1.25,.5,"w"],[1.5,.6,"w"],[2,.4,"w",1]],det:9,sub:.4,noise:.03,nb:5,cut0:600,cutL:3000,cutR:3500,q:.5,regen:[2,.25]},
+ {id:"eturbo",name:"Turbo Electric",tag:"Rumble with an e-turbo whistle",f0:50,fTop:300,parts:[[1,1,"w"],[2,.4,"s"],[8,.12,"s",1]],det:6,sub:.7,noise:.1,nb:4,cut0:450,cutL:3500,cutR:2500,q:.5,regen:[3,.2]},
+ {id:"gt",name:"GT Electric",tag:"Smooth, deep grand tourer",f0:45,fTop:260,parts:[[1,1,"s"],[2,.5,"s"],[3,.25,"w",1]],det:4,sub:.9,noise:.03,nb:6,cut0:400,cutL:1800,cutR:1500,q:.3,regen:[2,.3]},
+ {id:"track",name:"Track Mode",tag:"Screaming high-rev electric",f0:140,fTop:1200,parts:[[1,1,"w"],[2,.4,"q",1],[.5,.5,"w"]],det:6,sub:.3,drive:1.8,am:[.08,.25],noise:.06,nb:3,cut0:900,cutL:4500,cutR:4000,q:.6,crackle:.3,regen:[1.5,.2]}
+];
+SPORT.forEach(function(E){E.group="sport"});EVS.forEach(function(E){E.group="future"});
+EVS=SPORT.concat(EVS);
 EVS.forEach(function(E){E.ev=1;E.idle=800;E.red=8000;E.fire=[0];E.gains=[1];E.jitter=0;E.res=[];E.body=0;E.drive=1;E.cut0=E.cut0;E.ratios=[1];E.final=1;E.accel=3.5});
 ENGINES=EVS.concat(ENGINES);
 var TIRE_R=0.36;
@@ -228,7 +242,7 @@ class EngineCore{
  set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});
   this.bovF=this.bp(2600,3);this.inF=this.bp(900,1.2);this.tickF=this.bp(5500,2);
   this.pipeLen=Math.min(4000,Math.max(8,Math.round(this.sr*2*(p.pipe||2.2)/343)));this.mufLen=Math.round(this.sr*2*0.35/343);
-  this.idx=0;this.base=0;this.phase=0;this.pl=[];this.ph=new Float64Array(16);this.vp=0;this.fp=0;this.subp=0;this.lo=0;this.band=0;this.eNB=this.bp(400,2);this.eF=0.1;this.eQ=1;}
+  this.idx=0;this.base=0;this.phase=0;this.pl=[];this.ph=new Float64Array(16);this.amp=0;this.rgp=0;this.ck=0;this.vp=0;this.fp=0;this.subp=0;this.lo=0;this.band=0;this.eNB=this.bp(400,2);this.eF=0.1;this.eQ=1;}
  fire(k){const p=this.p,ld=Math.max(this.load,0),off=Math.max(-this.load,0),rn=this.rpm/p.red;
   const n=p.fire.length,rate=this.rpm/60*n*360/this.cycle,interval=1/rate;
   // Each firing: one exhaust pressure pulse. Harder throttle = stronger, sharper pulse; coasting = soft and lumpy.
@@ -239,15 +253,20 @@ class EngineCore{
   this.tick+=0.4;
   if(off>0.2&&rn>0.32&&Math.random()<p.pops*off*0.55){this.pl.push({t:0,T:T*2.5,a:a*(3+Math.random()*3)});this.crack=0.8+Math.random()*0.8;}}
  svf(fc){this.eF=2*Math.sin(Math.PI*Math.min(fc,this.sr*0.075)/this.sr);}
- evS(ld,rn,off){const p=this.p,sr=this.sr,T=2*Math.PI;
+ evS(ld,rn,off){off=off||0;const p=this.p,sr=this.sr,T=2*Math.PI;
   let f=p.f0*Math.pow(p.fTop/p.f0,Math.min(Math.max((this.rpm-p.idle)/(p.red-p.idle),0),1.2));
   if(p.vib){this.vp+=p.vib[0]/sr;if(this.vp>1)this.vp-=1;f*=1+p.vib[1]*Math.sin(T*this.vp);}
   let mod=0;if(p.fm){this.fp+=f*p.fm[0]/sr;if(this.fp>1)this.fp-=1;mod=Math.sin(T*this.fp)*p.fm[1]*(0.3+ld);}
   const dt=Math.pow(2,p.det/1200);let x=0;
   for(let k=0;k<p.parts.length;k++){const pr=p.parts[k];for(let v=0;v<2;v++){const ix=2*k+v;
     this.ph[ix]+=f*pr[0]*(v?dt:1/dt)/sr;if(this.ph[ix]>1)this.ph[ix]-=1;const ph=this.ph[ix];
-    const w=pr[2]==="s"?Math.sin(T*ph+mod):pr[2]==="w"?2*ph-1:(ph<0.5?1:-1);x+=w*pr[1]*0.5;}}
+    const w=pr[2]==="s"?Math.sin(T*ph+mod):pr[2]==="w"?2*ph-1:(ph<0.5?1:-1);x+=w*pr[1]*0.5*(pr[3]?0.15+0.85*ld:1);}}
   this.subp+=f*0.5/sr;if(this.subp>1)this.subp-=1;x+=Math.sin(T*this.subp)*p.sub;
+  if(p.am){this.amp+=f*p.am[0]/sr;if(this.amp>1)this.amp-=1;x*=1-p.am[1]*(0.5+0.5*Math.sin(T*this.amp));}
+  if(p.drive)x=Math.tanh(x*p.drive);
+  // regen: a soft tone that fades in as the car slows itself down
+  if(p.regen){this.rgp+=f*p.regen[0]/sr;if(this.rgp>1)this.rgp-=1;x+=Math.sin(T*this.rgp)*off*p.regen[1]*1.5;}
+  if(p.crackle){if(off>0.3&&Math.random()<p.crackle*off*0.0012)this.ck=1;if(this.ck>0.01){x+=(Math.random()*2-1)*this.ck*0.9;this.ck*=0.993;}}
   x+=this.run(this.eNB,Math.random()*2-1)*p.noise*(0.3+ld)*3;
   this.lo+=this.eF*this.band;const hi=x-this.lo-this.eQ*this.band;this.band+=this.eF*hi;
   return Math.tanh(this.lo*0.7)*0.6;}
@@ -273,11 +292,11 @@ class EngineCore{
   const cfc=9000-7600*this.cabin,cc=1-Math.exp(-2*Math.PI*cfc/sr),lbc=1-Math.exp(-2*Math.PI*110/sr),bk=1-Math.exp(-2*Math.PI*380/sr),lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*200/sr),intake=p.intake==null?0.3:p.intake;
   if(p.ev){const f=p.f0*Math.pow(p.fTop/p.f0,Math.min(Math.max((this.rpm-p.idle)/(p.red-p.idle),0),1.2));
    const nb=this.bp(Math.min(f*p.nb,sr*0.4),2);Object.assign(this.eNB,{b0:nb.b0,b2:nb.b2,a1:nb.a1,a2:nb.a2});
-   this.svf((p.cut0+p.cutL*ld0+p.cutR*rn0)*(off0>0.1?0.6:1));this.eQ=2*(1-p.q*0.95);}
+   this.svf((p.cut0+p.cutL*ld0+p.cutR*rn0)*(1-0.4*Math.min(off0,1)));this.eQ=2*(1-p.q*0.95);}
   for(let i=0;i<N;i++){
    this.rpm+=(this.tRpm-this.rpm)*ks;this.load+=(this.tLoad-this.load)*kl;
    const ld=Math.max(this.load,0),rn=this.rpm/p.red;
-   let y;if(p.ev){y=this.evS(ld,rn);}else{
+   let y;if(p.ev){y=this.evS(ld,rn,Math.max(-this.load,0));}else{
    this.phase+=this.rpm/60*360/sr;
    let tgt=p.fire[this.idx]+this.base,guard=0;
    while(this.phase>=tgt&&guard++<8){this.fire(this.idx);this.idx++;if(this.idx>=p.fire.length){this.idx=0;this.base+=this.cycle;}tgt=p.fire[this.idx]+this.base;}
@@ -413,9 +432,10 @@ function stepEngine(dt){
   // Look ahead: where the car's speed will be by the time this sound reaches your ears.
   var v=S.v<0.3&&a<0.3?S.v:Math.max(0,S.v+a*lead);
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
-  var thr=clamp(a/E.accel,0,1),offT=clamp(-a/2.2,0,1);
+  var aa=a>0?Math.max(a-0.2,0):Math.min(a+0.2,0); // small dead zone so sensor noise doesn't flick between throttle and regen
+  var thr=clamp(aa/E.accel,0,1),offT=clamp(-aa/2.2,0,1);
   var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
-  var load=thr>0.03?Math.max(thr,cruise):(offT>0.08?-offT:cruise*0.6);
+  var load=cruise*(1-offT)+thr*(1-cruise)-offT*0.9; // one smooth curve from regen through cruise to full throttle
   var rpm;
   if(E.ev){ // electric: no gears, pitch follows speed directly
     S.gear=v<0.6?0:1;rpm=E.idle+(E.red-E.idle)*Math.pow(Math.min(v/45,1),0.8)+thr*300;
@@ -429,12 +449,13 @@ function stepEngine(dt){
     if(S.gear<1)S.gear=1;
     var n=E.ratios.length,r=rpmAt(v,S.gear);
     var up=Math.min(E.idle+(E.red-E.idle)*(0.3+0.62*thr),E.red-150);
-    if(S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;}
-    else if(S.shiftT<=0&&S.gear>1){var dn=E.idle*1.25+thr*E.red*0.3;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=0.22;S.shiftKind=-1;}}
+    var now=performance.now(),ok=now-(S.lastShift||0)>900; // no gear hunting
+    if(ok&&S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;S.lastShift=now;}
+    else if(ok&&S.shiftT<=0&&S.gear>1){var dn=thr>0.3?E.idle*1.25+thr*E.red*0.3:E.idle*1.15;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=thr>0.3?0.22:0.08;S.shiftKind=thr>0.3?-1:0;S.lastShift=now;}}
     rpm=rpmAt(v,S.gear);
     if(S.gear===1&&v<6)rpm=Math.max(rpm,E.idle+thr*E.red*0.42); // clutch slip on launch
     rpm=Math.max(rpm,E.idle*0.95);
-    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else load=Math.max(load,0.55);}
+    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else if(S.shiftKind<0)load=Math.max(load,0.55);}
   }
   if(rpm>=E.red-100){S.limT+=dt;if((S.limT*14|0)%2)rpm=E.red-350;else rpm=E.red-60;load=Math.min(load,0.6)}else S.limT=0;
   if(E.turbo&&S.prevLoad>0.55&&load<0.1&&S.rpm>E.red*0.4&&node)node.port.postMessage({bov:1});
@@ -458,7 +479,8 @@ function frame(t){
   else{
     if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
     var src=calibrated()?S.aF-S.bias:S.aGPS;
-    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/(calibrated()?0.06:0.12));
+    var tau=src<S.aLoad?0.2:(calibrated()?0.06:0.12); // regen builds gradually; ease into it
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/tau);
   }
   var j=(S.aLoad-S.prevA)/Math.max(dt,0.008);S.prevA=S.aLoad;S.jerk+=(clamp(j,-30,30)-S.jerk)*Math.min(1,dt/0.08);
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
@@ -498,14 +520,14 @@ function render(){
   chip("cAud",ctx&&ctx.state==="running"?"ok":"bad","Audio "+(ctx&&ctx.state==="running"?"on":ctx?ctx.state:"off"));
 }
 function buildEngines(){
-  $("engines").innerHTML="";$("evs").innerHTML="";
+  $("engines").innerHTML="";$("evs").innerHTML="";$("sport").innerHTML="";
   ENGINES.forEach(function(E){
     var b=document.createElement("button");b.type="button";b.id="eng-"+E.id;
     b.innerHTML="<b></b><span></span><em></em>";
     b.children[0].textContent=E.name;b.children[1].textContent=E.tag;
     b.children[2].textContent=E.ev?"Electric · no gears":(E.fire.length===2&&E.cycle===360?"2 rotors":E.fire.length+" cyl")+" · "+E.red.toLocaleString()+" rpm"+(E.turbo?" · turbo":"")+(E.sc?" · supercharged":"")+(E.vtec?" · VTEC":"");
     b.setAttribute("aria-pressed",String(E===S.eng));
-    b.onclick=function(){pick(E)};$(E.ev?"evs":"engines").appendChild(b);
+    b.onclick=function(){pick(E)};$(E.group==="sport"?"sport":E.ev?"evs":"engines").appendChild(b);
   });
 }
 function pick(E){
