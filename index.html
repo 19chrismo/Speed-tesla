@@ -53,26 +53,8 @@ button{font-family:var(--body);cursor:pointer}
 .btn:active,.btn.held{border-color:var(--amber);color:var(--amber)}
 .btn:disabled{opacity:.4}
 .vol{grid-column:1/-1;display:flex;align-items:center;gap:12px;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
-.vol input{flex:1;min-width:0;accent-color:var(--amber)}
-.vol output{color:var(--fg);min-width:3em;text-align:right;font-variant-numeric:tabular-nums}
-.sync{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 12px;align-items:center;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
-.sync input{min-width:0;accent-color:var(--amber)}
-.sync output{color:var(--fg);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:right}
-.sync .hint{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;font-size:11px;letter-spacing:.04em;text-transform:none;font-family:var(--body);font-weight:500}
-.btn.small{padding:7px 12px;font-size:13px}
+.vol input{flex:1;accent-color:var(--amber)}
 h2{font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
-.srcs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.srcs button{padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 15px var(--num);letter-spacing:.06em;text-transform:uppercase}
-.srcs button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber)}
-.recbox{display:flex;flex-direction:column;gap:8px}
-.file{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--panel)}
-.file b{font:700 16px var(--num);letter-spacing:.04em}.file span{font-size:13px;color:var(--dim)}
-.file input{margin-top:6px;color:var(--dim);font-size:13px;max-width:100%}
-.file em{font-style:normal;font-size:13px;color:var(--amber)}
-.rpms{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px;color:var(--dim)}
-.rpms input{width:5.5em;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:#0f1216;color:var(--fg);font:600 15px var(--num)}
-.classic summary{cursor:pointer;font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding:6px 0}
-.classic .engines{margin-top:8px}
 .engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .engines button{text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);display:flex;flex-direction:column;gap:2px;min-width:0}
 .engines button b{font:700 18px var(--num);letter-spacing:.03em}
@@ -106,7 +88,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
       <div class="speed"><span id="spd">0</span><small id="spdU">KM/H</small></div>
       <div class="gearbox">
         <div class="gear" id="gear">N</div>
-        <div class="rpmtxt"><span id="rpm">0</span> <span id="rpmU">rpm</span></div>
+        <div class="rpmtxt"><span id="rpm">0</span> rpm</div>
         <div class="eng" id="engName"></div>
       </div>
     </div>
@@ -128,43 +110,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
     <button class="btn" id="recal" type="button">Recalibrate</button>
     <button class="btn" id="test" type="button">Sensor info</button>
     <label class="vol" for="volume">Volume <input id="volume" type="range" min="0" max="100" value="80"></label>
-    <label class="vol" for="cabin">Cabin <input id="cabin" type="range" min="0" max="100" value="55"><output id="cabinV">55%</output></label>
-    <label class="vol" for="mix">Engine <input id="mix" type="range" min="0" max="100" value="65"> Exhaust</label>
-    <div class="sync">
-      <label for="sync">Sync</label>
-      <input id="sync" type="range" min="-800" max="400" step="20" value="-200">
-      <output id="syncV" for="sync">−200 ms</output>
-      <button class="btn small" id="syncAuto" type="button">Auto</button>
-      <div class="hint"><span>◀ Sound earlier (sound feels late)</span><span>Sound later ▶</span></div>
-    </div>
   </div>
   <div class="msg" id="msg" role="status"></div>
 
-  <h2>Sound source</h2>
-  <div class="srcs" role="group" aria-label="Sound source">
-    <button type="button" id="mSynth" data-mode="synth">Synth</button>
-    <button type="button" id="mRec" data-mode="rec">Recording</button>
-    <button type="button" id="mBlend" data-mode="blend">Blend</button>
-  </div>
-  <div class="recbox">
-    <label class="file" for="fOn"><b>Rev recording</b><span>A real car revving smoothly from idle up to high rpm</span><input id="fOn" type="file" accept="audio/*,.mp3,.wav,.m4a"><em id="sOn">None loaded</em></label>
-    <label class="file" for="fOff"><b>Coasting recording</b><span>Optional: revs falling back to idle, for off-throttle sound</span><input id="fOff" type="file" accept="audio/*,.mp3,.wav,.m4a"><em id="sOff">None loaded</em></label>
-    <div class="rpms">
-      <label for="rStart">Recording starts at <input id="rStart" type="number" inputmode="numeric" min="300" max="3000" step="50" value="900"> rpm</label>
-      <label for="rEnd">and ends near <input id="rEnd" type="number" inputmode="numeric" min="2000" max="12000" step="100" value="7000"> rpm</label>
-      <button class="btn small" id="recClear" type="button">Remove recordings</button>
-    </div>
-    <p class="note"><b>Where to get one:</b> search freesound.org for "engine rev" and pick a CC0 or CC-BY clip of a single smooth rev from idle to high rpm, or record a car revving in neutral with your phone near the exhaust. 5–15 seconds is ideal. The page measures how the pitch rises, so the sound follows your speed at the right pitch. Your files stay on this phone.</p>
-  </div>
+  <h2>Engine</h2>
+  <div class="engines" id="engines"></div>
 
-  <h2>Electric sport</h2>
-  <div class="engines" id="sport"></div>
-  <h2>Futuristic</h2>
-  <div class="engines" id="evs"></div>
-  <details class="classic"><summary>Classic engines (synth)</summary>
-  <div class="engines" id="engines"></div></details>
-
-  <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. For exhaust-behind-you sound, move the car's audio fade toward the rear speakers. Don't touch the phone while driving.</p>
+  <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. Don't touch the phone while driving.</p>
 </div>
 
 <script>
@@ -205,156 +157,54 @@ var ENGINES=[
   res:[[95,3,1.3],[280,4,.95],[750,5,.55],[1700,4,.3]],body:.8,noise:.28,drive:3,cut0:900,cut1:3000,cutL:2300,pops:.25,sc:.45,scRatio:24,
   ratios:[4.71,3.14,2.1,1.67,1.29,1,.84,.67],final:3.09,accel:4}
 ];
-var EVS=[
- {id:"hover",name:"Hover Car",tag:"Retro-future glide",f0:110,fTop:660,parts:[[1,1,"s"],[2,.45,"s"],[3.01,.2,"s"]],det:6,vib:[5,.004],sub:.5,noise:.05,nb:4,cut0:1200,cutL:3000,cutR:3000,q:.2},
- {id:"warp",name:"Warp Drive",tag:"Deep sci-fi sweep",f0:55,fTop:330,parts:[[1,1,"w"],[1.5,.4,"w"],[2,.3,"w"]],det:12,vib:[.3,.01],sub:.8,noise:.08,nb:8,cut0:300,cutL:2500,cutR:4000,q:.85},
- {id:"turbine",name:"Turbine",tag:"Jet-engine spool",f0:400,fTop:3200,parts:[[1,.6,"s"],[1.98,.3,"s"],[.5,.2,"w"]],det:3,sub:.2,noise:.6,nb:1.2,cut0:1500,cutL:5000,cutR:5000,q:.3},
- {id:"neon",name:"Neon Cycle",tag:"Arcade light-bike buzz",f0:90,fTop:720,parts:[[1,1,"q"],[2,.35,"w"]],det:8,sub:.3,noise:.02,nb:3,cut0:600,cutL:3500,cutR:3500,q:.7},
- {id:"maglev",name:"Mag-Lev",tag:"Smooth electric hum",f0:180,fTop:1400,parts:[[1,1,"s"],[4,.15,"s"]],fm:[2,1.2],det:2,sub:.3,noise:.03,nb:5,cut0:2000,cutL:2000,cutR:3000,q:.1},
- {id:"starship",name:"Starship",tag:"Huge low thrum and shimmer",f0:40,fTop:200,parts:[[1,1,"w"],[2.005,.5,"w"],[5.01,.12,"s"],[7.03,.08,"s"]],det:18,vib:[.15,.02],sub:1,noise:.12,nb:20,cut0:250,cutL:2000,cutR:2500,q:.6}
-];
-var SPORT=[
- {id:"esport",name:"Electric Sport",tag:"Taycan-style interior sound",f0:70,fTop:420,parts:[[1,1,"w"],[1.5,.35,"s"],[2,.4,"w",1],[3,.18,"s",1]],det:7,vib:[4,.002],sub:.6,noise:.04,nb:6,cut0:500,cutL:2600,cutR:2200,q:.55,regen:[2,.3]},
- {id:"rallye",name:"Rally E",tag:"Gritty rally-inspired buzz",f0:60,fTop:480,parts:[[1,1,"q"],[2,.5,"w"],[3,.25,"w",1]],det:10,sub:.5,drive:2.5,am:[.25,.5],noise:.15,nb:3,cut0:700,cutL:4000,cutR:2500,q:.45,crackle:.6,regen:[1.5,.25]},
- {id:"hyper",name:"Hyper EV",tag:"Hypercar chord that climbs",f0:90,fTop:720,parts:[[1,1,"w"],[1.25,.5,"w"],[1.5,.6,"w"],[2,.4,"w",1]],det:9,sub:.4,noise:.03,nb:5,cut0:600,cutL:3000,cutR:3500,q:.5,regen:[2,.25]},
- {id:"eturbo",name:"Turbo Electric",tag:"Rumble with an e-turbo whistle",f0:50,fTop:300,parts:[[1,1,"w"],[2,.4,"s"],[8,.12,"s",1]],det:6,sub:.7,noise:.1,nb:4,cut0:450,cutL:3500,cutR:2500,q:.5,regen:[3,.2]},
- {id:"gt",name:"GT Electric",tag:"Smooth, deep grand tourer",f0:45,fTop:260,parts:[[1,1,"s"],[2,.5,"s"],[3,.25,"w",1]],det:4,sub:.9,noise:.03,nb:6,cut0:400,cutL:1800,cutR:1500,q:.3,regen:[2,.3]},
- {id:"track",name:"Track Mode",tag:"Screaming high-rev electric",f0:140,fTop:1200,parts:[[1,1,"w"],[2,.4,"q",1],[.5,.5,"w"]],det:6,sub:.3,drive:1.8,am:[.08,.25],noise:.06,nb:3,cut0:900,cutL:4500,cutR:4000,q:.6,crackle:.3,regen:[1.5,.2]}
-];
-SPORT.forEach(function(E){E.group="sport"});EVS.forEach(function(E){E.group="future"});
-EVS=SPORT.concat(EVS);
-EVS.forEach(function(E){E.ev=1;E.idle=800;E.red=8000;E.fire=[0];E.gains=[1];E.jitter=0;E.res=[];E.body=0;E.drive=1;E.cut0=E.cut0;E.ratios=[1];E.final=1;E.accel=3.5});
-ENGINES=EVS.concat(ENGINES);
 var TIRE_R=0.36;
 
 /* ---------------- Audio worklet (runs on audio thread) ---------------- */
 class EngineCore{
  constructor(sr){this.sr=sr;this.p=null;this.rpm=800;this.tRpm=800;this.load=0;this.tLoad=0;this.phase=0;this.base=0;this.idx=0;
-  this.pl=[];this.boost=0;this.bov=0;this.wp=0;this.sp=0;this.lp1=0;this.lp2=0;this.body=0;this.on=1;this.gain=0;this.crack=0;this.tick=0;this.cabin=0.5;this.mixEx=0.65;this.c1=0;this.c2=0;this.lowb=0;this.blk=0;this.exb=new Float32Array(512);this.xw=0;this.exLag=Math.round(sr*0.003);
-  this.dxl=0;this.dyl=0;this.dxr=0;this.dyr=0;this.er=new Float32Array(4096);this.ew=0;
-  this.pipe=new Float32Array(4096);this.pw=0;this.plp=0;this.muf=new Float32Array(1024);this.mw=0;
-  this.mode="synth";this.smp={on:null,off:null};this.gr=[];this.gt=0;this.og=0;
-  this.G=Math.round(sr*0.08);this.hop=this.G>>2;this.win=new Float32Array(this.G);for(let i=0;i<this.G;i++)this.win[i]=0.5-0.5*Math.cos(2*Math.PI*i/this.G);
-  const ms=x=>Math.round(x*sr/1000);this.tL1=ms(7);this.tL2=ms(19);this.tR1=ms(9.5);this.tR2=ms(23);}
- msg(d){if(d.preset)this.set(d.preset);if(d.rpm!=null)this.tRpm=d.rpm;if(d.load!=null)this.tLoad=d.load;if(d.bov)this.bov=Math.max(this.bov,this.boost);if(d.on!=null)this.on=d.on;if(d.cabin!=null)this.cabin=d.cabin;if(d.mode)this.mode=d.mode;if(d.samp!==undefined){this.smp=d.samp||{on:null,off:null};this.gr=[];}if(d.mix!=null)this.mixEx=d.mix;}
+  this.pe=0;this.nb=0;this.boost=0;this.bov=0;this.bovF=null;this.wp=0;this.sp=0;this.lp1=0;this.lp2=0;this.body=0;this.dx=0;this.dy=0;this.on=1;this.gain=0;}
+ msg(d){if(d.preset)this.set(d.preset);if(d.rpm!=null)this.tRpm=d.rpm;if(d.load!=null)this.tLoad=d.load;if(d.bov)this.bov=Math.max(this.bov,this.boost);if(d.on!=null)this.on=d.on;}
  bp(f,q){const w=2*Math.PI*f/this.sr,al=Math.sin(w)/(2*q),a0=1+al;return{b0:al/a0,b2:-al/a0,a1:-2*Math.cos(w)/a0,a2:(1-al)/a0,x1:0,x2:0,y1:0,y2:0};}
  run(r,x){const y=r.b0*x+r.b2*r.x2-r.a1*r.y1-r.a2*r.y2;r.x2=r.x1;r.x1=x;r.y2=r.y1;r.y1=y;return y;}
- set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});
-  this.bovF=this.bp(2600,3);this.inF=this.bp(900,1.2);this.tickF=this.bp(5500,2);
-  this.pipeLen=Math.min(4000,Math.max(8,Math.round(this.sr*2*(p.pipe||2.2)/343)));this.mufLen=Math.round(this.sr*2*0.35/343);
-  this.idx=0;this.base=0;this.phase=0;this.pl=[];this.ph=new Float64Array(16);this.amp=0;this.rgp=0;this.ck=0;this.vp=0;this.fp=0;this.subp=0;this.lo=0;this.band=0;this.eNB=this.bp(400,2);this.eF=0.1;this.eQ=1;}
+ set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});this.bovF=this.bp(2600,3);this.idx=0;this.base=0;this.phase=0;}
  fire(k){const p=this.p,ld=Math.max(this.load,0),off=Math.max(-this.load,0),rn=this.rpm/p.red;
-  const n=p.fire.length,rate=this.rpm/60*n*360/this.cycle,interval=1/rate;
-  // Each firing: one exhaust pressure pulse. Harder throttle = stronger, sharper pulse; coasting = soft and lumpy.
-  let a=p.gains[k%p.gains.length]*(0.22+0.78*ld)*(1+p.jitter*(Math.random()*2-1)*(1.5-rn)*(off>0.1?1.6:1));
-  a/=Math.sqrt(1+rate/150);
-  const T=Math.min(Math.max(interval*(0.42-0.17*ld),0.0006),0.007)*this.sr;
-  this.pl.push({t:0,T:T,a:a});if(this.pl.length>6)this.pl.shift();
-  this.tick+=0.4;
-  if(off>0.2&&rn>0.32&&Math.random()<p.pops*off*0.55){this.pl.push({t:0,T:T*2.5,a:a*(3+Math.random()*3)});this.crack=0.8+Math.random()*0.8;}}
- svf(fc){this.eF=2*Math.sin(Math.PI*Math.min(fc,this.sr*0.075)/this.sr);}
- evS(ld,rn,off){off=off||0;const p=this.p,sr=this.sr,T=2*Math.PI;
-  let f=p.f0*Math.pow(p.fTop/p.f0,Math.min(Math.max((this.rpm-p.idle)/(p.red-p.idle),0),1.2));
-  if(p.vib){this.vp+=p.vib[0]/sr;if(this.vp>1)this.vp-=1;f*=1+p.vib[1]*Math.sin(T*this.vp);}
-  let mod=0;if(p.fm){this.fp+=f*p.fm[0]/sr;if(this.fp>1)this.fp-=1;mod=Math.sin(T*this.fp)*p.fm[1]*(0.3+ld);}
-  const dt=Math.pow(2,p.det/1200);let x=0;
-  for(let k=0;k<p.parts.length;k++){const pr=p.parts[k];for(let v=0;v<2;v++){const ix=2*k+v;
-    this.ph[ix]+=f*pr[0]*(v?dt:1/dt)/sr;if(this.ph[ix]>1)this.ph[ix]-=1;const ph=this.ph[ix];
-    const w=pr[2]==="s"?Math.sin(T*ph+mod):pr[2]==="w"?2*ph-1:(ph<0.5?1:-1);x+=w*pr[1]*0.5*(pr[3]?0.15+0.85*ld:1);}}
-  this.subp+=f*0.5/sr;if(this.subp>1)this.subp-=1;x+=Math.sin(T*this.subp)*p.sub;
-  if(p.am){this.amp+=f*p.am[0]/sr;if(this.amp>1)this.amp-=1;x*=1-p.am[1]*(0.5+0.5*Math.sin(T*this.amp));}
-  if(p.drive)x=Math.tanh(x*p.drive);
-  // regen: a soft tone that fades in as the car slows itself down
-  if(p.regen){this.rgp+=f*p.regen[0]/sr;if(this.rgp>1)this.rgp-=1;x+=Math.sin(T*this.rgp)*off*p.regen[1]*1.5;}
-  if(p.crackle){if(off>0.3&&Math.random()<p.crackle*off*0.0012)this.ck=1;if(this.ck>0.01){x+=(Math.random()*2-1)*this.ck*0.9;this.ck*=0.993;}}
-  x+=this.run(this.eNB,Math.random()*2-1)*p.noise*(0.3+ld)*3;
-  this.lo+=this.eF*this.band;const hi=x-this.lo-this.eQ*this.band;this.band+=this.eF*hi;
-  return Math.tanh(this.lo*0.7)*0.6;}
- look(s,rpm){const a=s.rpm,n=a.length;if(rpm<=a[0])return[s.pos[0],a[0]];if(rpm>=a[n-1])return[s.pos[n-1],a[n-1]];
-  let lo=0,hi=n-1;while(hi-lo>1){const m=(lo+hi)>>1;if(a[m]<=rpm)lo=m;else hi=m;}const f=(rpm-a[lo])/Math.max(a[hi]-a[lo],1e-6);
-  return[s.pos[lo]+(s.pos[hi]-s.pos[lo])*f,rpm];}
- spawn(){const S=this.smp,rpm=this.rpm,G=this.G;
-  // On-throttle and coasting recordings crossfade with the throttle.
-  let wOn=1,wOff=0;if(S.off){wOn=Math.min(Math.max((this.load+0.15)/0.4,0),1);wOff=1-wOn;}
-  for(const [s,w] of [[S.on,wOn],[S.off,wOff]]){if(!s||w<0.02)continue;
-   const lk=this.look(s,rpm),rate=Math.min(Math.max(rpm/lk[1],0.5),2.5);
-   let p=lk[0]-G*rate/2+(Math.random()*2-1)*this.hop*0.5;p=Math.min(Math.max(p,0),s.data.length-G*rate-2);
-   this.gr.push({d:s.data,p:p,r:rate,t:0,w:w});}}
- grains(){let o=0,w=0;const G=this.G,win=this.win;
-  for(let j=0;j<this.gr.length;j++){const g=this.gr[j],x=g.p+g.t*g.r,i0=x|0,f=x-i0,d=g.d;
-   o+=(d[i0]+(d[i0+1]-d[i0])*f)*win[g.t]*g.w;g.t++;if(g.t<G)this.gr[w++]=g;}
-  this.gr.length=w;return o*0.5;}
- render(L,R){const N=L.length,sr=this.sr,p=this.p;
-  if(!p){L.fill(0);if(R)R.fill(0);return;}
-  const ks=1-Math.exp(-1/(0.015*sr)),kl=1-Math.exp(-1/(0.025*sr)),cd=Math.exp(-1/(0.006*sr)),td=Math.exp(-1/(0.0015*sr)),bd=Math.exp(-1/(0.35*sr));
-  const rn0=this.rpm/p.red,ld0=Math.max(this.load,0),off0=Math.max(-this.load,0);let fc=p.cut0+p.cut1*rn0+p.cutL*ld0-600*off0;let vt=1;
-  if(p.vtec&&this.rpm>p.vtec){fc+=2600;vt=1.2;}fc=Math.min(Math.max(fc,500),sr*0.45);
-  const cfc=9000-7600*this.cabin,cc=1-Math.exp(-2*Math.PI*cfc/sr),lbc=1-Math.exp(-2*Math.PI*110/sr),bk=1-Math.exp(-2*Math.PI*380/sr),lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*200/sr),intake=p.intake==null?0.3:p.intake;
-  if(p.ev){const f=p.f0*Math.pow(p.fTop/p.f0,Math.min(Math.max((this.rpm-p.idle)/(p.red-p.idle),0),1.2));
-   const nb=this.bp(Math.min(f*p.nb,sr*0.4),2);Object.assign(this.eNB,{b0:nb.b0,b2:nb.b2,a1:nb.a1,a2:nb.a2});
-   this.svf((p.cut0+p.cutL*ld0+p.cutR*rn0)*(1-0.4*Math.min(off0,1)));this.eQ=2*(1-p.q*0.95);}
+  const rate=this.rpm/60*p.fire.length*360/this.cycle;let a=p.gains[k%p.gains.length]*(0.32+0.68*ld)*(1+p.jitter*(Math.random()*2-1)*(1.4-rn));
+  a/=Math.sqrt(1+rate/150);this.pe+=a;this.nb=Math.max(this.nb,a);
+  if(off>0.2&&rn>0.35&&Math.random()<p.pops*off*0.55){this.pe+=a*(2+Math.random()*3);this.nb+=1.2+Math.random();}}
+ render(ch){const N=ch.length,sr=this.sr,p=this.p;
+  if(!p){ch.fill(0);return;}
+  const ks=1-Math.exp(-1/(0.03*sr)),kl=1-Math.exp(-1/(0.06*sr)),pd=Math.exp(-1/(0.0012*sr)),nd=Math.exp(-1/(0.0022*sr)),bd=Math.exp(-1/(0.35*sr));
+  const rn0=this.rpm/p.red,ld0=Math.max(this.load,0);let fc=p.cut0+p.cut1*rn0+p.cutL*ld0;let vt=1;
+  if(p.vtec&&this.rpm>p.vtec){fc+=2600;vt=1.2;}fc=Math.min(fc,sr*0.45);
+  const lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*220/sr);
   for(let i=0;i<N;i++){
    this.rpm+=(this.tRpm-this.rpm)*ks;this.load+=(this.tLoad-this.load)*kl;
    const ld=Math.max(this.load,0),rn=this.rpm/p.red;
-   let y;if(p.ev){y=this.evS(ld,rn,Math.max(-this.load,0));}else{
    this.phase+=this.rpm/60*360/sr;
-   let tgt=p.fire[this.idx]+this.base,guard=0;
+   let tgt=p.fire[this.idx]+this.base;let guard=0;
    while(this.phase>=tgt&&guard++<8){this.fire(this.idx);this.idx++;if(this.idx>=p.fire.length){this.idx=0;this.base+=this.cycle;}tgt=p.fire[this.idx]+this.base;}
    if(this.base>1e7){this.phase-=this.base;this.base=0;}
-   // pulse train: positive pressure lobe, then a rarefaction dip
-   let x=0,env=0,w=0;
-   for(let j=0;j<this.pl.length;j++){const q=this.pl[j],u=q.t/q.T;let v;
-    if(u<1){const sn=Math.sin(Math.PI*u);v=sn*sn;env+=q.a;}else{v=-0.38*Math.sin(Math.PI*(u-1)/1.2);env+=q.a*0.3;}
-    x+=q.a*v;q.t++;if(u<2.2)this.pl[w++]=q;}
-   this.pl.length=w;
    const nz=Math.random()*2-1;
-   x+=nz*env*p.noise*(0.6+0.8*ld);
-   if(this.crack>0.01){x+=nz*this.crack*1.4;this.crack*=cd;}
-   // exhaust pipe: a tube with an inverted, damped reflection at the open end
-   const d=this.pipe[(this.pw-this.pipeLen+4096)&4095];this.plp+=(d-this.plp)*0.45;
-   const pin=x-0.55*this.plp;this.pipe[this.pw]=pin;this.pw=(this.pw+1)&4095;
-   const md=this.muf[(this.mw-this.mufLen+1024)&1023];const mo=pin+0.3*md;this.muf[this.mw]=pin;this.mw=(this.mw+1)&1023;
-   // EXHAUST layer: pipe + resonances, arriving from the back of the car a few ms later
-   let ex=mo*0.35;for(const r of this.res)ex+=r.g*this.run(r,mo);
-   this.body+=(mo-this.body)*bc;ex+=this.body*p.body*2.5;
-   this.exb[this.xw]=ex;const exd=this.exb[(this.xw-this.exLag+512)&511];this.xw=(this.xw+1)&511;
-   // ENGINE layer: combustion thump through the block, intake roar, valvetrain ticks
-   this.blk+=(x-this.blk)*bk;let en=this.blk*2.2+this.run(this.inF,nz)*env*intake*(0.3+ld)*1.4;
-   if(this.tick>0.01){en+=this.run(this.tickF,nz)*this.tick*0.07;this.tick*=td;}
-   const s=exd*this.mixEx*1.35+en*(1-this.mixEx)*1.6;
+   const x=this.pe+nz*this.nb*p.noise;this.pe*=pd;this.nb*=nd;
+   let s=0;for(const r of this.res)s+=r.g*this.run(r,x);
+   this.body+=(x-this.body)*bc;s+=this.body*p.body*3;
    this.lp1+=(s-this.lp1)*lc;this.lp2+=(this.lp1-this.lp2)*lc;
-   y=Math.tanh(this.lp2*p.drive*vt*(0.6+0.6*ld))*0.5;
+   let y=Math.tanh(this.lp2*p.drive*vt*(0.6+0.6*ld))*0.5;
    if(p.turbo){const bt=ld*Math.min(Math.max((rn-0.25)/0.4,0),1);this.boost+=(bt-this.boost)*(bt>this.boost?1/(0.7*sr):1/(0.25*sr));
     this.wp+=(1400+5200*this.boost)/sr;if(this.wp>1)this.wp-=1;y+=Math.sin(2*Math.PI*this.wp)*p.turbo*this.boost*this.boost*0.12;
     if(this.bov>0.01){y+=this.run(this.bovF,nz)*this.bov*p.turbo*1.4;this.bov*=bd;}}
    if(p.sc){this.sp+=this.rpm/60*p.scRatio/sr;if(this.sp>1)this.sp-=1;const ph=2*Math.PI*this.sp;
     y+=(Math.sin(ph)+0.3*Math.sin(2*ph))*p.sc*rn*(0.35+0.65*ld)*0.1;}
-   }
    const m=(0.35+0.45*ld+0.25*rn)*this.on;this.gain+=(m-this.gain)*0.0005;y*=this.gain;
-   if(this.mode!=="synth"&&this.smp.on){
-    if(--this.gt<=0){this.spawn();this.gt=this.hop;}
-    this.og+=(this.on-this.og)*0.0005;const yr=this.grains()*(0.6+0.5*ld)*this.og*0.85;
-    y=this.mode==="rec"?yr:y*0.5+yr*0.75;}
-   // cabin: glass and insulation soak up the highs, the body boom stays
-   this.c1+=(y-this.c1)*cc;this.c2+=(this.c1-this.c2)*cc;this.lowb+=(y-this.lowb)*lbc;
-   y=this.c2*(1+0.25*this.cabin)+this.lowb*this.cabin*0.7;
-   // cabin: a few early reflections, slightly different per ear
-   const er=this.er,ew=this.ew;er[ew]=y;
-   const yl=y+0.2*er[(ew-this.tL1)&4095]+0.11*er[(ew-this.tL2)&4095];
-   const yr=y*0.97+0.2*er[(ew-this.tR1)&4095]+0.11*er[(ew-this.tR2)&4095];this.ew=(ew+1)&4095;
-   const ol=yl-this.dxl+0.995*this.dyl;this.dxl=yl;this.dyl=ol;L[i]=ol*0.85;
-   const orr=yr-this.dxr+0.995*this.dyr;this.dxr=yr;this.dyr=orr;if(R)R[i]=orr*0.85;}}
+   const dc=y-this.dx+0.995*this.dy;this.dx=y;this.dy=dc;ch[i]=dc;}}
 }
-var PIPES={flat6:[1.6,.35],v10:[1.4,.3],v12:[1.5,.3],muscle:[2.8,.35],flatv8:[1.6,.3],i6t:[2.4,.25],boxer:[2.6,.3],rotary:[1.8,.4],vtec:[1.9,.6],scv8:[2.8,.35]};
-var LEVEL={v12:1.6,v10:1.15};
-ENGINES.forEach(function(E){var x=PIPES[E.id]||[2.2,.3];E.pipe=x[0];E.intake=x[1];var k=LEVEL[E.id]||1;E.res=E.res.map(function(r){return[r[0],r[1],r[2]*k]});E.body*=k});
-var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProcessor{constructor(){super();this.c=new EngineCore(sampleRate);this.port.onmessage=e=>this.c.msg(e.data);}process(i,o){const out=o[0];if(!out||!out[0])return true;this.c.render(out[0],out[1]);for(let k=2;k<out.length;k++)out[k].set(out[0]);return true;}}\nregisterProcessor('engine-proc',EngineProc);";
+var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProcessor{constructor(){super();this.c=new EngineCore(sampleRate);this.port.onmessage=e=>this.c.msg(e.data);}process(i,o){const out=o[0];if(!out||!out[0])return true;this.c.render(out[0]);for(let k=1;k<out.length;k++)out[k].set(out[0]);return true;}}\nregisterProcessor('engine-proc',EngineProc);";
 
 /* ---------------- State ---------------- */
 var $=function(id){return document.getElementById(id)};
 var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
  lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
- eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,sync:-200,q:[],jerk:0,prevA:0};
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0};
 var ctx=null,node=null,vol=null;
 
 function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
@@ -382,7 +232,7 @@ function onMotion(e){
   if(calibrated()){
     // Fwd acceleration from the phone, cornering projected out; gyro spikes (bumps) damped.
     var af=dot(lh,S.fwd)*(rm>60?0.5:1);
-    S.aF+=(af-S.aF)*0.4;
+    S.aF+=(af-S.aF)*0.25;
     if(!S.demo&&dt>0){S.v=Math.max(0,S.v+(S.aF-S.bias)*dt);}
   }
 }
@@ -428,20 +278,12 @@ function onGPSErr(e){S.gpsOK=false;if(e&&e.code===1)say("Location is blocked. Al
 /* ---------------- Engine model ---------------- */
 function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.final}
 function stepEngine(dt){
-  var lead=S.sync<0?-S.sync/1000:0,E=S.eng,a=S.aLoad+clamp(S.jerk*lead*0.6,-3,3); // also predict pedal changes from how fast the push is building
-  // Look ahead: where the car's speed will be by the time this sound reaches your ears.
-  var v=S.v<0.3&&a<0.3?S.v:Math.max(0,S.v+a*lead);
+  var E=S.eng,v=S.v,a=S.aLoad;
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
-  var aa=a>0?Math.max(a-0.2,0):Math.min(a+0.2,0); // small dead zone so sensor noise doesn't flick between throttle and regen
-  var thr=clamp(aa/E.accel,0,1),offT=clamp(-aa/2.2,0,1);
+  var thr=clamp(a/E.accel,0,1),offT=clamp(-a/2.2,0,1);
   var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
-  var load=cruise*(1-offT)+thr*(1-cruise)-offT*0.9; // one smooth curve from regen through cruise to full throttle
+  var load=thr>0.03?Math.max(thr,cruise):(offT>0.08?-offT:cruise*0.6);
   var rpm;
-  if(E.ev){ // electric: no gears, pitch follows speed directly
-    S.gear=v<0.6?0:1;rpm=E.idle+(E.red-E.idle)*Math.pow(Math.min(v/45,1),0.8)+thr*300;
-    if(v<0.6){rpm=Math.max(rpm,E.idle+S.revHold*(E.red*0.7-E.idle));load=Math.max(load,S.revHold)}
-    S.prevLoad=load;S.rpm=rpm;S.load=load;return;
-  }
   if(v<0.6&&thr<0.05){ // parked / stopped: idle, free-rev with the button
     S.gear=0;rpm=E.idle+S.revHold*(E.red*0.88-E.idle);load=Math.max(load,S.revHold);
     rpm+=Math.sin(performance.now()/180)*E.idle*0.015;
@@ -449,13 +291,12 @@ function stepEngine(dt){
     if(S.gear<1)S.gear=1;
     var n=E.ratios.length,r=rpmAt(v,S.gear);
     var up=Math.min(E.idle+(E.red-E.idle)*(0.3+0.62*thr),E.red-150);
-    var now=performance.now(),ok=now-(S.lastShift||0)>900; // no gear hunting
-    if(ok&&S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;S.lastShift=now;}
-    else if(ok&&S.shiftT<=0&&S.gear>1){var dn=thr>0.3?E.idle*1.25+thr*E.red*0.3:E.idle*1.15;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=thr>0.3?0.22:0.08;S.shiftKind=thr>0.3?-1:0;S.lastShift=now;}}
+    if(S.shiftT<=0&&r>up&&S.gear<n){S.gear++;S.shiftT=0.16;S.shiftKind=1;}
+    else if(S.shiftT<=0&&S.gear>1){var dn=E.idle*1.25+thr*E.red*0.3;if(r<dn&&rpmAt(v,S.gear-1)<up*0.9){S.gear--;S.shiftT=0.22;S.shiftKind=-1;}}
     rpm=rpmAt(v,S.gear);
     if(S.gear===1&&v<6)rpm=Math.max(rpm,E.idle+thr*E.red*0.42); // clutch slip on launch
     rpm=Math.max(rpm,E.idle*0.95);
-    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else if(S.shiftKind<0)load=Math.max(load,0.55);}
+    if(S.shiftT>0){S.shiftT-=dt;if(S.shiftKind>0)load=-0.15;else load=Math.max(load,0.55);}
   }
   if(rpm>=E.red-100){S.limT+=dt;if((S.limT*14|0)%2)rpm=E.red-350;else rpm=E.red-60;load=Math.min(load,0.6)}else S.limT=0;
   if(E.turbo&&S.prevLoad>0.55&&load<0.1&&S.rpm>E.red*0.4&&node)node.port.postMessage({bov:1});
@@ -479,19 +320,11 @@ function frame(t){
   else{
     if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
     var src=calibrated()?S.aF-S.bias:S.aGPS;
-    var tau=src<S.aLoad?0.2:(calibrated()?0.06:0.12); // regen builds gradually; ease into it
-    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/tau);
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/0.12);
   }
-  var j=(S.aLoad-S.prevA)/Math.max(dt,0.008);S.prevA=S.aLoad;S.jerk+=(clamp(j,-30,30)-S.jerk)*Math.min(1,dt/0.08);
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
   stepEngine(dt);
-  var outR=S.rpm,outL=S.load;
-  if(S.sync>0){ // hold the sound back
-    S.q.push({t:t,r:S.rpm,l:S.load});
-    while(S.q.length>1&&S.q[1].t<=t-S.sync)S.q.shift();
-    if(S.q[0].t<=t-S.sync){outR=S.q[0].r;outL=S.q[0].l}else{outR=S.q[0].r;outL=S.q[0].l}
-  }else if(S.q.length)S.q=[];
-  if(node)node.port.postMessage({rpm:outR,load:outL});
+  if(node)node.port.postMessage({rpm:S.rpm,load:S.load});
   render();
   requestAnimationFrame(frame);
 }
@@ -500,14 +333,14 @@ function frame(t){
 function chip(id,cls,txt){var c=$(id);c.className="chip "+cls;c.lastElementChild.textContent=txt}
 function say(t){$("msg").textContent=t||""}
 function buildTicks(){
-  var E=S.eng,n=Math.ceil(E.red/1000),h="";if(E.ev){for(var i=0;i<=4;i++)h+="<span>"+(i*25)+"%</span>"}else for(var i=0;i<=n;i++)h+="<span>"+i+"</span>";$("ticks").innerHTML=h;
-  var top=n*1000;$("redz").style.width=E.ev?"0":((top-E.red+500)/top*100)+"%";$("engName").textContent=E.name;
+  var E=S.eng,n=Math.ceil(E.red/1000),h="";for(var i=0;i<=n;i++)h+="<span>"+i+"</span>";$("ticks").innerHTML=h;
+  var top=n*1000;$("redz").style.width=((top-E.red+500)/top*100)+"%";$("engName").textContent=E.name;
 }
 function render(){
   var E=S.eng,top=Math.ceil(E.red/1000)*1000;
   var sp=S.mph?S.v*2.23694:S.v*3.6;$("spd").textContent=Math.round(sp);
-  if(E.ev){$("gear").textContent=S.gear?"D":"P";$("rpm").textContent=String(Math.round(clamp((S.rpm-E.idle)/(E.red-E.idle),0,1)*100));$("rpmU").textContent="% power"}
-  else{$("gear").textContent=S.gear?String(S.gear):"N";$("rpm").textContent=String(Math.round(S.rpm/50)*50);$("rpmU").textContent="rpm"}
+  $("gear").textContent=S.gear?String(S.gear):"N";
+  $("rpm").textContent=String(Math.round(S.rpm/50)*50);
   $("tfill").style.width=clamp(S.rpm/top*100,0,100)+"%";
   $("tach").classList.toggle("limit",S.rpm>E.red-400);
   var lf=$("lfill"),l=clamp(S.load,-1,1);
@@ -520,14 +353,14 @@ function render(){
   chip("cAud",ctx&&ctx.state==="running"?"ok":"bad","Audio "+(ctx&&ctx.state==="running"?"on":ctx?ctx.state:"off"));
 }
 function buildEngines(){
-  $("engines").innerHTML="";$("evs").innerHTML="";$("sport").innerHTML="";
+  var box=$("engines");box.innerHTML="";
   ENGINES.forEach(function(E){
     var b=document.createElement("button");b.type="button";b.id="eng-"+E.id;
     b.innerHTML="<b></b><span></span><em></em>";
     b.children[0].textContent=E.name;b.children[1].textContent=E.tag;
-    b.children[2].textContent=E.ev?"Electric · no gears":(E.fire.length===2&&E.cycle===360?"2 rotors":E.fire.length+" cyl")+" · "+E.red.toLocaleString()+" rpm"+(E.turbo?" · turbo":"")+(E.sc?" · supercharged":"")+(E.vtec?" · VTEC":"");
+    b.children[2].textContent=(E.fire.length===2&&E.cycle===360?"2 rotors":E.fire.length+" cyl")+" · "+E.red.toLocaleString()+" rpm"+(E.turbo?" · turbo":"")+(E.sc?" · supercharged":"")+(E.vtec?" · VTEC":"");
     b.setAttribute("aria-pressed",String(E===S.eng));
-    b.onclick=function(){pick(E)};$(E.group==="sport"?"sport":E.ev?"evs":"engines").appendChild(b);
+    b.onclick=function(){pick(E)};box.appendChild(b);
   });
 }
 function pick(E){
@@ -549,15 +382,15 @@ async function ensureAudio(){
     out=node=new AudioWorkletNode(ctx,"engine-proc",{outputChannelCount:[2]});
   }catch(err){
     // Fallback when the page blocks worklets (previews, older browsers): same engine on the main thread.
-    var core=new EngineCore(ctx.sampleRate),sp=ctx.createScriptProcessor(512,0,2);
-    sp.onaudioprocess=function(ev){var b=ev.outputBuffer;core.render(b.getChannelData(0),b.numberOfChannels>1?b.getChannelData(1):null)};
+    var core=new EngineCore(ctx.sampleRate),sp=ctx.createScriptProcessor(1024,0,2);
+    sp.onaudioprocess=function(ev){var b=ev.outputBuffer,c0=b.getChannelData(0);core.render(c0);for(var k=1;k<b.numberOfChannels;k++)b.getChannelData(k).set(c0)};
     node={port:{postMessage:function(d){core.msg(d)}}};out=sp;
   }
   vol=ctx.createGain();vol.gain.value=Math.pow($("volume").value/100,1.6);
   var comp=ctx.createDynamicsCompressor();comp.threshold.value=-10;comp.ratio.value=4;
   out.connect(vol);vol.connect(comp);comp.connect(ctx.destination);
-  node.port.postMessage({preset:S.eng});sendMix();
-  await ctx.resume();loadSavedRec();
+  node.port.postMessage({preset:S.eng});
+  await ctx.resume();
 }
 async function keepAwake(){
   try{if("wakeLock" in navigator){S.wl=await navigator.wakeLock.request("screen");S.awake=true;
@@ -603,87 +436,6 @@ $("test").onclick=function(){
   say("Speed "+(S.v*3.6).toFixed(1)+" km/h · GPS accel "+S.aGPS.toFixed(2)+" · sensor accel "+S.aF.toFixed(2)+" m/s² · bias "+S.bias.toFixed(2)+" · forward axis "+f+" ("+S.cal+" locks)");
 };
 $("volume").oninput=function(){store("vol",+this.value);if(vol)vol.gain.setTargetAtTime(Math.pow(this.value/100,1.6),ctx.currentTime,0.05)};
-function setSync(ms,save){S.sync=ms;$("sync").value=ms;$("syncV").textContent=(ms<0?"−":ms>0?"+":"")+Math.abs(ms)+" ms";if(save)store("sync",ms)}
-$("sync").oninput=function(){setSync(+this.value,true)};
-$("syncAuto").onclick=async function(){
-  try{await ensureAudio()}catch(e){}
-  var lat=ctx?((ctx.outputLatency||0)+(ctx.baseLatency||0)):0;
-  // Sensor + smoothing delay is about 120 ms; Bluetooth adds 150-250 ms but browsers often don't report it.
-  var ms=-Math.round((0.12+(lat>0.05?lat:0.2))*1000/20)*20;
-  setSync(clamp(ms,-800,0),true);
-  say("Sync set to "+$("syncV").textContent+(lat>0.05?" (measured audio delay "+Math.round(lat*1000)+" ms).":" (estimated; fine-tune with the slider)."));
-};
-function sendMix(){if(node)node.port.postMessage({cabin:$("cabin").value/100,mix:$("mix").value/100});$("cabinV").textContent=$("cabin").value+"%"}
-$("cabin").oninput=function(){store("cabin",+this.value);sendMix()};
-$("mix").oninput=function(){store("mix",+this.value);sendMix()};
-/* ---------- Real recordings: analysis + storage ---------- */
-var REC={mode:"synth",on:null,off:null,blobs:{on:null,off:null}};
-function idb(){return new Promise(function(res,rej){var r=indexedDB.open("speedoEngine",1);r.onupgradeneeded=function(){r.result.createObjectStore("files")};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
-async function idbSet(k,v){try{var db=await idb();await new Promise(function(res,rej){var tx=db.transaction("files","readwrite");if(v==null)tx.objectStore("files").delete(k);else tx.objectStore("files").put(v,k);tx.oncomplete=res;tx.onerror=function(){rej(tx.error)}})}catch(e){}}
-async function idbGet(k){try{var db=await idb();return await new Promise(function(res){var r=db.transaction("files").objectStore("files").get(k);r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}})}catch(e){return null}}
-function median(a){var b=Array.from(a).sort(function(x,y){return x-y});return b[b.length>>1]}
-// Measure how the engine's pitch rises (or falls) through the clip, so any rpm maps to the right spot.
-function analyze(buf,kind){
-  var sr=buf.sampleRate,n=buf.length,x=new Float32Array(n),c,i;
-  for(c=0;c<buf.numberOfChannels;c++){var ch=buf.getChannelData(c);for(i=0;i<n;i++)x[i]+=ch[i]/buf.numberOfChannels}
-  var B=1024,env=[],mx=0;for(i=0;i+B<=n;i+=B){var m=0;for(var j=i;j<i+B;j++){var v=Math.abs(x[j]);if(v>m)m=v}env.push(m);if(m>mx)mx=m}
-  if(mx<1e-4)throw new Error("the file is silent");
-  var a=0,b=env.length-1;while(a<b&&env[a]<mx*0.08)a++;while(b>a&&env[b]<mx*0.08)b--;
-  x=x.slice(a*B,(b+1)*B);n=x.length;
-  for(i=0;i<n;i++)x[i]=x[i]/mx*0.9;
-  var D=Math.max(1,Math.floor(sr/8000)),sr2=sr/D,n2=Math.floor(n/D),y=new Float32Array(n2);
-  for(i=0;i<n2;i++){var s=0;for(j=0;j<D;j++)s+=x[i*D+j];y[i]=s/D}
-  var prevF=null,hop=Math.round(sr2*0.01),W=Math.round(sr2*0.064),minT=Math.floor(sr2/1000),maxT=Math.ceil(sr2/22),d=new Float32Array(maxT+1),F=[],P=[],C=[];
-  for(var st=0;st+W+maxT<n2;st+=hop){
-    for(var t=1;t<=maxT;t++){var q=0;for(j=0;j<W;j++){var e=y[st+j]-y[st+j+t];q+=e*e}d[t]=q}
-    var run=0,best=-1,bv=9;for(t=1;t<=maxT;t++){run+=d[t];d[t]=d[t]*t/(run||1)}
-    if(prevF==null){for(t=minT;t<=maxT;t++)if(d[t]<bv){bv=d[t];best=t}
-      for(t=minT;t<=maxT;t++){if(d[t]<0.2){while(t+1<=maxT&&d[t+1]<d[t])t++;best=t;bv=d[t];break}}}
-    else{var sc=9;for(t=minT+1;t<maxT;t++)if(d[t]<0.45&&d[t]<=d[t-1]&&d[t]<=d[t+1]){var g=Math.abs(Math.log(sr2/t/prevF))*4+d[t];if(g<sc){sc=g;best=t;bv=d[t]}}}
-    if(best<0){F.push(prevF||100);C.push(1);P.push((st+W/2)*D);continue}
-    var tt=best;if(best>1&&best<maxT){var den=d[best-1]-2*d[best]+d[best+1];if(den>1e-9)tt=best+(d[best-1]-d[best+1])/(2*den)}
-    var fq=sr2/tt;
-    // follow one harmonic smoothly: a big jump means the detector slipped, so keep the last good value
-    if(prevF!=null&&Math.abs(Math.log(fq/prevF))>0.25){F.push(prevF);C.push(1)}else{F.push(fq);C.push(bv);prevF=fq}
-    P.push((st+W/2)*D);
-  }
-  if(F.length<8)throw new Error("the clip is too short");
-  var good=C.filter(function(v){return v<0.45}).length/C.length;
-  var head=[];for(i=0;i<F.length&&head.length<6;i++)if(C[i]<0.45)head.push(F[i]);
-  var f0=head.length?median(head):F[0],r=[],prev=1;
-  for(i=0;i<F.length;i++){var cand=C[i]<0.45?F[i]/f0:prev;r.push(cand);prev=cand}
-  var sm=r.map(function(_,k){return median(r.slice(Math.max(0,k-4),k+5))});
-  var q10=Math.max(1,sm.length/10|0),first=median(sm.slice(0,q10)),last=median(sm.slice(-q10));
-  var rising=kind==="off"?!(last<first*0.8)&&last>first*1.25:last>=first;
-  var mono=[],k,cur=rising?-1:1e9,ext=0;
-  for(k=0;k<sm.length;k++){cur=rising?Math.max(cur,sm[k]):Math.min(cur,sm[k]);mono.push(cur);if(mono[k]!==mono[ext])ext=k}
-  var R=rising?mono[ext]/mono[0]:mono[0]/mono[ext],start=+$("rStart").value||900,end=+$("rEnd").value||7000,method="pitch";
-  var rpm=[],pos=[];
-  var top=start*R,fit=Math.log(end/start)/Math.log(Math.max(R,1.01));
-  if(good<0.4||R<1.5||top<end*0.6){ // pitch unclear: assume an even sweep between the two rpm values
-    method="even";for(k=0;k<P.length;k++){var f=k/(P.length-1);rpm.push(start+(end-start)*(rising?f:1-f));pos.push(P[k])}
-  }else{var lo=rising?mono[0]:mono[ext];var ex=(top>end*0.75&&top<end*1.33)?fit:1;for(k=0;k<=ext;k++){rpm.push(start*Math.pow(mono[k]/lo,ex));pos.push(P[k])}}
-  if(!rising){rpm.reverse();pos.reverse()}
-  for(k=1;k<rpm.length;k++)if(rpm[k]<rpm[k-1])rpm[k]=rpm[k-1];
-  return{data:x,rpm:new Float32Array(rpm),pos:new Float32Array(pos),info:{dur:n/sr,lo:rpm[0],hi:rpm[rpm.length-1],method:method}};
-}
-function recLabel(o){return o.info.dur.toFixed(1)+" s · "+Math.round(o.info.lo/100)*100+"–"+Math.round(o.info.hi/100)*100+" rpm"+(o.info.method==="even"?" (pitch unclear, spread evenly)":" (pitch tracked)")}
-async function loadRec(kind,blob){
-  var el=$(kind==="on"?"sOn":"sOff");el.textContent="Analyzing…";
-  try{await ensureAudio();var buf=await ctx.decodeAudioData(await blob.arrayBuffer());
-    var o=analyze(buf,kind);REC[kind]=o;el.textContent=recLabel(o);sendRec();return true}
-  catch(e){REC[kind]=null;el.textContent="Couldn't use this file: "+(e.message||"unsupported format");return false}
-}
-function sendRec(){if(node)node.port.postMessage({samp:REC.on?{on:{data:REC.on.data,rpm:REC.on.rpm,pos:REC.on.pos},off:REC.off?{data:REC.off.data,rpm:REC.off.rpm,pos:REC.off.pos}:null}:null,mode:REC.on?REC.mode:"synth"})}
-function setMode(m,save){REC.mode=m;["mSynth","mRec","mBlend"].forEach(function(id){$(id).setAttribute("aria-pressed",String($(id).dataset.mode===m))});
-  if(save)store("mode",m);if(m!=="synth"&&!REC.on&&!REC.blobs.on)say("Load a rev recording below to hear Recording mode. Until then you'll hear the synth.");sendRec()}
-["mSynth","mRec","mBlend"].forEach(function(id){$(id).onclick=function(){setMode(this.dataset.mode,true)}});
-["on","off"].forEach(function(kind){$(kind==="on"?"fOn":"fOff").onchange=async function(){var f=this.files&&this.files[0];if(!f)return;
-  REC.blobs[kind]=f;if(await loadRec(kind,f)){idbSet(kind,f);if(kind==="on"&&REC.mode==="synth")setMode("rec",true)}}});
-["rStart","rEnd"].forEach(function(id){$(id).onchange=function(){store(id,+this.value);["on","off"].forEach(function(k){if(REC.blobs[k])loadRec(k,REC.blobs[k])})}});
-$("recClear").onclick=function(){REC.on=REC.off=null;REC.blobs={on:null,off:null};idbSet("on",null);idbSet("off",null);$("sOn").textContent=$("sOff").textContent="None loaded";$("fOn").value=$("fOff").value="";setMode("synth",true)};
-async function restoreRec(){for(var k of["on","off"]){var b=await idbGet(k);if(b){REC.blobs[k]=b;$(k==="on"?"sOn":"sOff").textContent="Saved recording — loads when you start"}}}
-async function loadSavedRec(){for(var k of["on","off"])if(REC.blobs[k]&&!REC[k])await loadRec(k,REC.blobs[k])}
 $("units").onclick=function(){S.mph=!S.mph;store("mph",S.mph);this.textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H"};
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.running){keepAwake();if(ctx)ctx.resume()}});
 
@@ -691,7 +443,6 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
 (function(){
   var id=load("engine",null);S.eng=ENGINES.filter(function(E){return E.id===id})[0]||ENGINES[0];
   $("volume").value=load("vol",80);S.mph=!!load("mph",false);$("units").textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H";
-  setSync(load("sync",-200),false);$("rStart").value=load("rStart",900);$("rEnd").value=load("rEnd",7000);setMode(load("mode","synth"),false);restoreRec();$("cabin").value=load("cabin",55);$("mix").value=load("mix",65);$("cabinV").textContent=$("cabin").value+"%";
   var f=load("fwd",null);if(f&&f.f){S.fwd=f.f;S.cal=f.c||2}
   buildEngines();buildTicks();render();requestAnimationFrame(frame);
 })();
