@@ -53,7 +53,8 @@ button{font-family:var(--body);cursor:pointer}
 .btn:active,.btn.held{border-color:var(--amber);color:var(--amber)}
 .btn:disabled{opacity:.4}
 .vol{grid-column:1/-1;display:flex;align-items:center;gap:12px;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
-.vol input{flex:1;accent-color:var(--amber)}
+.vol input{flex:1;min-width:0;accent-color:var(--amber)}
+.vol output{color:var(--fg);min-width:3em;text-align:right;font-variant-numeric:tabular-nums}
 .sync{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 12px;align-items:center;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
 .sync input{min-width:0;accent-color:var(--amber)}
 .sync output{color:var(--fg);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:right}
@@ -115,6 +116,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
     <button class="btn" id="recal" type="button">Recalibrate</button>
     <button class="btn" id="test" type="button">Sensor info</button>
     <label class="vol" for="volume">Volume <input id="volume" type="range" min="0" max="100" value="80"></label>
+    <label class="vol" for="cabin">Cabin <input id="cabin" type="range" min="0" max="100" value="55"><output id="cabinV">55%</output></label>
+    <label class="vol" for="mix">Engine <input id="mix" type="range" min="0" max="100" value="65"> Exhaust</label>
     <div class="sync">
       <label for="sync">Sync</label>
       <input id="sync" type="range" min="-800" max="400" step="20" value="-200">
@@ -128,7 +131,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
   <h2>Engine</h2>
   <div class="engines" id="engines"></div>
 
-  <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. Don't touch the phone while driving.</p>
+  <p class="note"><b>Setup:</b> mount the phone firmly (any orientation), connect it to the car by Bluetooth, open this page over HTTPS, and tap Start. Pull away normally for a few seconds and the motion sensors lock onto the car's forward direction; until then the sound runs on GPS alone. Use Hold to rev and Demo run while parked to try the engines. For exhaust-behind-you sound, move the car's audio fade toward the rear speakers. Don't touch the phone while driving.</p>
 </div>
 
 <script>
@@ -174,32 +177,60 @@ var TIRE_R=0.36;
 /* ---------------- Audio worklet (runs on audio thread) ---------------- */
 class EngineCore{
  constructor(sr){this.sr=sr;this.p=null;this.rpm=800;this.tRpm=800;this.load=0;this.tLoad=0;this.phase=0;this.base=0;this.idx=0;
-  this.pe=0;this.nb=0;this.boost=0;this.bov=0;this.bovF=null;this.wp=0;this.sp=0;this.lp1=0;this.lp2=0;this.body=0;this.dx=0;this.dy=0;this.on=1;this.gain=0;}
- msg(d){if(d.preset)this.set(d.preset);if(d.rpm!=null)this.tRpm=d.rpm;if(d.load!=null)this.tLoad=d.load;if(d.bov)this.bov=Math.max(this.bov,this.boost);if(d.on!=null)this.on=d.on;}
+  this.pl=[];this.boost=0;this.bov=0;this.wp=0;this.sp=0;this.lp1=0;this.lp2=0;this.body=0;this.on=1;this.gain=0;this.crack=0;this.tick=0;this.cabin=0.5;this.mixEx=0.65;this.c1=0;this.c2=0;this.lowb=0;this.blk=0;this.exb=new Float32Array(512);this.xw=0;this.exLag=Math.round(sr*0.003);
+  this.dxl=0;this.dyl=0;this.dxr=0;this.dyr=0;this.er=new Float32Array(4096);this.ew=0;
+  this.pipe=new Float32Array(4096);this.pw=0;this.plp=0;this.muf=new Float32Array(1024);this.mw=0;
+  const ms=x=>Math.round(x*sr/1000);this.tL1=ms(7);this.tL2=ms(19);this.tR1=ms(9.5);this.tR2=ms(23);}
+ msg(d){if(d.preset)this.set(d.preset);if(d.rpm!=null)this.tRpm=d.rpm;if(d.load!=null)this.tLoad=d.load;if(d.bov)this.bov=Math.max(this.bov,this.boost);if(d.on!=null)this.on=d.on;if(d.cabin!=null)this.cabin=d.cabin;if(d.mix!=null)this.mixEx=d.mix;}
  bp(f,q){const w=2*Math.PI*f/this.sr,al=Math.sin(w)/(2*q),a0=1+al;return{b0:al/a0,b2:-al/a0,a1:-2*Math.cos(w)/a0,a2:(1-al)/a0,x1:0,x2:0,y1:0,y2:0};}
  run(r,x){const y=r.b0*x+r.b2*r.x2-r.a1*r.y1-r.a2*r.y2;r.x2=r.x1;r.x1=x;r.y2=r.y1;r.y1=y;return y;}
- set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});this.bovF=this.bp(2600,3);this.idx=0;this.base=0;this.phase=0;}
+ set(p){this.p=p;this.cycle=p.cycle||720;this.res=p.res.map(a=>{const r=this.bp(a[0],a[1]);r.g=a[2];return r;});
+  this.bovF=this.bp(2600,3);this.inF=this.bp(900,1.2);this.tickF=this.bp(5500,2);
+  this.pipeLen=Math.min(4000,Math.max(8,Math.round(this.sr*2*(p.pipe||2.2)/343)));this.mufLen=Math.round(this.sr*2*0.35/343);
+  this.idx=0;this.base=0;this.phase=0;this.pl=[];}
  fire(k){const p=this.p,ld=Math.max(this.load,0),off=Math.max(-this.load,0),rn=this.rpm/p.red;
-  const rate=this.rpm/60*p.fire.length*360/this.cycle;let a=p.gains[k%p.gains.length]*(0.32+0.68*ld)*(1+p.jitter*(Math.random()*2-1)*(1.4-rn));
-  a/=Math.sqrt(1+rate/150);this.pe+=a;this.nb=Math.max(this.nb,a);
-  if(off>0.2&&rn>0.35&&Math.random()<p.pops*off*0.55){this.pe+=a*(2+Math.random()*3);this.nb+=1.2+Math.random();}}
- render(ch){const N=ch.length,sr=this.sr,p=this.p;
-  if(!p){ch.fill(0);return;}
-  const ks=1-Math.exp(-1/(0.03*sr)),kl=1-Math.exp(-1/(0.06*sr)),pd=Math.exp(-1/(0.0012*sr)),nd=Math.exp(-1/(0.0022*sr)),bd=Math.exp(-1/(0.35*sr));
-  const rn0=this.rpm/p.red,ld0=Math.max(this.load,0);let fc=p.cut0+p.cut1*rn0+p.cutL*ld0;let vt=1;
-  if(p.vtec&&this.rpm>p.vtec){fc+=2600;vt=1.2;}fc=Math.min(fc,sr*0.45);
-  const lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*220/sr);
+  const n=p.fire.length,rate=this.rpm/60*n*360/this.cycle,interval=1/rate;
+  // Each firing: one exhaust pressure pulse. Harder throttle = stronger, sharper pulse; coasting = soft and lumpy.
+  let a=p.gains[k%p.gains.length]*(0.22+0.78*ld)*(1+p.jitter*(Math.random()*2-1)*(1.5-rn)*(off>0.1?1.6:1));
+  a/=Math.sqrt(1+rate/150);
+  const T=Math.min(Math.max(interval*(0.42-0.17*ld),0.0006),0.007)*this.sr;
+  this.pl.push({t:0,T:T,a:a});if(this.pl.length>6)this.pl.shift();
+  this.tick+=0.4;
+  if(off>0.2&&rn>0.32&&Math.random()<p.pops*off*0.55){this.pl.push({t:0,T:T*2.5,a:a*(3+Math.random()*3)});this.crack=0.8+Math.random()*0.8;}}
+ render(L,R){const N=L.length,sr=this.sr,p=this.p;
+  if(!p){L.fill(0);if(R)R.fill(0);return;}
+  const ks=1-Math.exp(-1/(0.015*sr)),kl=1-Math.exp(-1/(0.025*sr)),cd=Math.exp(-1/(0.006*sr)),td=Math.exp(-1/(0.0015*sr)),bd=Math.exp(-1/(0.35*sr));
+  const rn0=this.rpm/p.red,ld0=Math.max(this.load,0),off0=Math.max(-this.load,0);let fc=p.cut0+p.cut1*rn0+p.cutL*ld0-600*off0;let vt=1;
+  if(p.vtec&&this.rpm>p.vtec){fc+=2600;vt=1.2;}fc=Math.min(Math.max(fc,500),sr*0.45);
+  const cfc=9000-7600*this.cabin,cc=1-Math.exp(-2*Math.PI*cfc/sr),lbc=1-Math.exp(-2*Math.PI*110/sr),bk=1-Math.exp(-2*Math.PI*380/sr),lc=1-Math.exp(-2*Math.PI*fc/sr),bc=1-Math.exp(-2*Math.PI*200/sr),intake=p.intake==null?0.3:p.intake;
   for(let i=0;i<N;i++){
    this.rpm+=(this.tRpm-this.rpm)*ks;this.load+=(this.tLoad-this.load)*kl;
    const ld=Math.max(this.load,0),rn=this.rpm/p.red;
    this.phase+=this.rpm/60*360/sr;
-   let tgt=p.fire[this.idx]+this.base;let guard=0;
+   let tgt=p.fire[this.idx]+this.base,guard=0;
    while(this.phase>=tgt&&guard++<8){this.fire(this.idx);this.idx++;if(this.idx>=p.fire.length){this.idx=0;this.base+=this.cycle;}tgt=p.fire[this.idx]+this.base;}
    if(this.base>1e7){this.phase-=this.base;this.base=0;}
+   // pulse train: positive pressure lobe, then a rarefaction dip
+   let x=0,env=0,w=0;
+   for(let j=0;j<this.pl.length;j++){const q=this.pl[j],u=q.t/q.T;let v;
+    if(u<1){const sn=Math.sin(Math.PI*u);v=sn*sn;env+=q.a;}else{v=-0.38*Math.sin(Math.PI*(u-1)/1.2);env+=q.a*0.3;}
+    x+=q.a*v;q.t++;if(u<2.2)this.pl[w++]=q;}
+   this.pl.length=w;
    const nz=Math.random()*2-1;
-   const x=this.pe+nz*this.nb*p.noise;this.pe*=pd;this.nb*=nd;
-   let s=0;for(const r of this.res)s+=r.g*this.run(r,x);
-   this.body+=(x-this.body)*bc;s+=this.body*p.body*3;
+   x+=nz*env*p.noise*(0.6+0.8*ld);
+   if(this.crack>0.01){x+=nz*this.crack*1.4;this.crack*=cd;}
+   // exhaust pipe: a tube with an inverted, damped reflection at the open end
+   const d=this.pipe[(this.pw-this.pipeLen+4096)&4095];this.plp+=(d-this.plp)*0.45;
+   const pin=x-0.55*this.plp;this.pipe[this.pw]=pin;this.pw=(this.pw+1)&4095;
+   const md=this.muf[(this.mw-this.mufLen+1024)&1023];const mo=pin+0.3*md;this.muf[this.mw]=pin;this.mw=(this.mw+1)&1023;
+   // EXHAUST layer: pipe + resonances, arriving from the back of the car a few ms later
+   let ex=mo*0.35;for(const r of this.res)ex+=r.g*this.run(r,mo);
+   this.body+=(mo-this.body)*bc;ex+=this.body*p.body*2.5;
+   this.exb[this.xw]=ex;const exd=this.exb[(this.xw-this.exLag+512)&511];this.xw=(this.xw+1)&511;
+   // ENGINE layer: combustion thump through the block, intake roar, valvetrain ticks
+   this.blk+=(x-this.blk)*bk;let en=this.blk*2.2+this.run(this.inF,nz)*env*intake*(0.3+ld)*1.4;
+   if(this.tick>0.01){en+=this.run(this.tickF,nz)*this.tick*0.07;this.tick*=td;}
+   const s=exd*this.mixEx*1.35+en*(1-this.mixEx)*1.6;
    this.lp1+=(s-this.lp1)*lc;this.lp2+=(this.lp1-this.lp2)*lc;
    let y=Math.tanh(this.lp2*p.drive*vt*(0.6+0.6*ld))*0.5;
    if(p.turbo){const bt=ld*Math.min(Math.max((rn-0.25)/0.4,0),1);this.boost+=(bt-this.boost)*(bt>this.boost?1/(0.7*sr):1/(0.25*sr));
@@ -208,15 +239,26 @@ class EngineCore{
    if(p.sc){this.sp+=this.rpm/60*p.scRatio/sr;if(this.sp>1)this.sp-=1;const ph=2*Math.PI*this.sp;
     y+=(Math.sin(ph)+0.3*Math.sin(2*ph))*p.sc*rn*(0.35+0.65*ld)*0.1;}
    const m=(0.35+0.45*ld+0.25*rn)*this.on;this.gain+=(m-this.gain)*0.0005;y*=this.gain;
-   const dc=y-this.dx+0.995*this.dy;this.dx=y;this.dy=dc;ch[i]=dc;}}
+   // cabin: glass and insulation soak up the highs, the body boom stays
+   this.c1+=(y-this.c1)*cc;this.c2+=(this.c1-this.c2)*cc;this.lowb+=(y-this.lowb)*lbc;
+   y=this.c2*(1+0.25*this.cabin)+this.lowb*this.cabin*0.7;
+   // cabin: a few early reflections, slightly different per ear
+   const er=this.er,ew=this.ew;er[ew]=y;
+   const yl=y+0.2*er[(ew-this.tL1)&4095]+0.11*er[(ew-this.tL2)&4095];
+   const yr=y*0.97+0.2*er[(ew-this.tR1)&4095]+0.11*er[(ew-this.tR2)&4095];this.ew=(ew+1)&4095;
+   const ol=yl-this.dxl+0.995*this.dyl;this.dxl=yl;this.dyl=ol;L[i]=ol*0.85;
+   const orr=yr-this.dxr+0.995*this.dyr;this.dxr=yr;this.dyr=orr;if(R)R[i]=orr*0.85;}}
 }
-var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProcessor{constructor(){super();this.c=new EngineCore(sampleRate);this.port.onmessage=e=>this.c.msg(e.data);}process(i,o){const out=o[0];if(!out||!out[0])return true;this.c.render(out[0]);for(let k=1;k<out.length;k++)out[k].set(out[0]);return true;}}\nregisterProcessor('engine-proc',EngineProc);";
+var PIPES={flat6:[1.6,.35],v10:[1.4,.3],v12:[1.5,.3],muscle:[2.8,.35],flatv8:[1.6,.3],i6t:[2.4,.25],boxer:[2.6,.3],rotary:[1.8,.4],vtec:[1.9,.6],scv8:[2.8,.35]};
+var LEVEL={v12:1.6,v10:1.15};
+ENGINES.forEach(function(E){var x=PIPES[E.id]||[2.2,.3];E.pipe=x[0];E.intake=x[1];var k=LEVEL[E.id]||1;E.res=E.res.map(function(r){return[r[0],r[1],r[2]*k]});E.body*=k});
+var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProcessor{constructor(){super();this.c=new EngineCore(sampleRate);this.port.onmessage=e=>this.c.msg(e.data);}process(i,o){const out=o[0];if(!out||!out[0])return true;this.c.render(out[0],out[1]);for(let k=2;k<out.length;k++)out[k].set(out[0]);return true;}}\nregisterProcessor('engine-proc',EngineProc);";
 
 /* ---------------- State ---------------- */
 var $=function(id){return document.getElementById(id)};
 var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
  lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
- eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,sync:-200,q:[]};
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,sync:-200,q:[],jerk:0,prevA:0};
 var ctx=null,node=null,vol=null;
 
 function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
@@ -244,7 +286,7 @@ function onMotion(e){
   if(calibrated()){
     // Fwd acceleration from the phone, cornering projected out; gyro spikes (bumps) damped.
     var af=dot(lh,S.fwd)*(rm>60?0.5:1);
-    S.aF+=(af-S.aF)*0.25;
+    S.aF+=(af-S.aF)*0.4;
     if(!S.demo&&dt>0){S.v=Math.max(0,S.v+(S.aF-S.bias)*dt);}
   }
 }
@@ -290,7 +332,7 @@ function onGPSErr(e){S.gpsOK=false;if(e&&e.code===1)say("Location is blocked. Al
 /* ---------------- Engine model ---------------- */
 function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.final}
 function stepEngine(dt){
-  var E=S.eng,a=S.aLoad,lead=S.sync<0?-S.sync/1000:0;
+  var lead=S.sync<0?-S.sync/1000:0,E=S.eng,a=S.aLoad+clamp(S.jerk*lead*0.6,-3,3); // also predict pedal changes from how fast the push is building
   // Look ahead: where the car's speed will be by the time this sound reaches your ears.
   var v=S.v<0.3&&a<0.3?S.v:Math.max(0,S.v+a*lead);
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
@@ -336,6 +378,7 @@ function frame(t){
     var src=calibrated()?S.aF-S.bias:S.aGPS;
     S.aLoad+=(src-S.aLoad)*Math.min(1,dt/(calibrated()?0.06:0.12));
   }
+  var j=(S.aLoad-S.prevA)/Math.max(dt,0.008);S.prevA=S.aLoad;S.jerk+=(clamp(j,-30,30)-S.jerk)*Math.min(1,dt/0.08);
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
   stepEngine(dt);
   var outR=S.rpm,outL=S.load;
@@ -402,14 +445,14 @@ async function ensureAudio(){
     out=node=new AudioWorkletNode(ctx,"engine-proc",{outputChannelCount:[2]});
   }catch(err){
     // Fallback when the page blocks worklets (previews, older browsers): same engine on the main thread.
-    var core=new EngineCore(ctx.sampleRate),sp=ctx.createScriptProcessor(1024,0,2);
-    sp.onaudioprocess=function(ev){var b=ev.outputBuffer,c0=b.getChannelData(0);core.render(c0);for(var k=1;k<b.numberOfChannels;k++)b.getChannelData(k).set(c0)};
+    var core=new EngineCore(ctx.sampleRate),sp=ctx.createScriptProcessor(512,0,2);
+    sp.onaudioprocess=function(ev){var b=ev.outputBuffer;core.render(b.getChannelData(0),b.numberOfChannels>1?b.getChannelData(1):null)};
     node={port:{postMessage:function(d){core.msg(d)}}};out=sp;
   }
   vol=ctx.createGain();vol.gain.value=Math.pow($("volume").value/100,1.6);
   var comp=ctx.createDynamicsCompressor();comp.threshold.value=-10;comp.ratio.value=4;
   out.connect(vol);vol.connect(comp);comp.connect(ctx.destination);
-  node.port.postMessage({preset:S.eng});
+  node.port.postMessage({preset:S.eng});sendMix();
   await ctx.resume();
 }
 async function keepAwake(){
@@ -466,6 +509,9 @@ $("syncAuto").onclick=async function(){
   setSync(clamp(ms,-800,0),true);
   say("Sync set to "+$("syncV").textContent+(lat>0.05?" (measured audio delay "+Math.round(lat*1000)+" ms).":" (estimated; fine-tune with the slider)."));
 };
+function sendMix(){if(node)node.port.postMessage({cabin:$("cabin").value/100,mix:$("mix").value/100});$("cabinV").textContent=$("cabin").value+"%"}
+$("cabin").oninput=function(){store("cabin",+this.value);sendMix()};
+$("mix").oninput=function(){store("mix",+this.value);sendMix()};
 $("units").onclick=function(){S.mph=!S.mph;store("mph",S.mph);this.textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H"};
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.running){keepAwake();if(ctx)ctx.resume()}});
 
@@ -473,7 +519,7 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
 (function(){
   var id=load("engine",null);S.eng=ENGINES.filter(function(E){return E.id===id})[0]||ENGINES[0];
   $("volume").value=load("vol",80);S.mph=!!load("mph",false);$("units").textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H";
-  setSync(load("sync",-200),false);
+  setSync(load("sync",-200),false);$("cabin").value=load("cabin",55);$("mix").value=load("mix",65);$("cabinV").textContent=$("cabin").value+"%";
   var f=load("fwd",null);if(f&&f.f){S.fwd=f.f;S.cal=f.c||2}
   buildEngines();buildTicks();render();requestAnimationFrame(frame);
 })();
