@@ -1,0 +1,11 @@
+# Game/recorded engine audio is for personal use only — never commit it.
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.webm
+*.opus
+clips/
+out/
+tools/__pycache__/
