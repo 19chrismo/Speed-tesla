@@ -22,6 +22,7 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
 body{padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1 .ver{font-size:13px;color:var(--dim);letter-spacing:.06em}
 h1{font-family:var(--num);font-weight:600;font-size:22px;letter-spacing:.08em;text-transform:uppercase;margin:0}
 .units{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:4px 10px;font:600 13px var(--num);letter-spacing:.08em}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -53,6 +54,9 @@ button{font-family:var(--body);cursor:pointer}
 .btn:active,.btn.held{border-color:var(--amber);color:var(--amber)}
 .btn:disabled{opacity:.4}
 .vol{grid-column:1/-1;display:flex;align-items:center;gap:12px;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.smooth{grid-column:1/-1;display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:8px;align-items:center;font:600 13px var(--num);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.smooth button{padding:9px 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 14px var(--num);letter-spacing:.05em;text-transform:uppercase}
+.smooth button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
 .vol input{flex:1;accent-color:var(--amber)}
 h2{font:600 14px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
 .engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -72,7 +76,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
 <body>
 <div class="wrap">
   <header>
-    <h1>Speedo Engine</h1>
+    <h1>Speedo Engine <span class="ver">v8</span></h1>
     <button class="units" id="units" type="button">km/h</button>
   </header>
 
@@ -109,6 +113,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-
     <button class="btn" id="demo" type="button">Demo run</button>
     <button class="btn" id="recal" type="button">Recalibrate</button>
     <button class="btn" id="test" type="button">Sensor info</button>
+    <div class="smooth" role="group" aria-label="Smoothness"><span>Smoothness</span>
+      <button type="button" data-s="1">Quick</button><button type="button" data-s="2">Balanced</button><button type="button" data-s="3">Smooth</button></div>
     <label class="vol" for="volume">Volume <input id="volume" type="range" min="0" max="100" value="80"></label>
   </div>
   <div class="msg" id="msg" role="status"></div>
@@ -204,7 +210,8 @@ var WORKLET=EngineCore.toString()+"\nclass EngineProc extends AudioWorkletProces
 var $=function(id){return document.getElementById(id)};
 var S={running:false,v:0,bias:0,aF:0,aLoad:0,fwd:null,cal:0,gLP:null,acc:[0,0,0],cnt:0,gyroMax:0,lastMotionT:0,motionSeen:false,
  lastFix:null,aGPS:0,gpsAcc:null,gpsOK:false,hist:[],awake:false,wl:null,watch:null,
- eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,pend:0,vs:0,lastShift:0};
+ eng:ENGINES[0],gear:0,rpm:0,load:0,shiftT:0,shiftKind:0,limT:0,revHold:0,revTarget:0,demo:null,mph:false,prevLoad:0,pend:0,vs:0,lastShift:0,moving:false,smooth:2};
+function SM(){return [1,2,3.5][S.smooth-1]||2}
 var ctx=null,node=null,vol=null;
 
 function store(k,v){try{localStorage.setItem("speedoEngine."+k,JSON.stringify(v))}catch(e){}}
@@ -253,7 +260,7 @@ function onGPS(pos){
     if(dtg>0.2&&dtg<5){
       var aG=clamp((s-L.s)/dtg,-9,9);
       if(Math.abs(aG-S.aGPS)>6)aG=S.aGPS; // reject jumps (bridges, tunnels)
-      S.aGPS+=(aG-S.aGPS)*0.6;
+      S.aGPS+=(aG-S.aGPS)*0.35;
       // Learn which way is "forward" for the phone: match the felt push with GPS speed change.
       if(S.cnt>5&&Math.abs(aG)>0.7&&S.gyroMax<20){
         var m=scl(S.acc,1/S.cnt),mn=nrm(m);
@@ -280,14 +287,14 @@ function rpmAt(v,g){var E=S.eng;return v/(2*Math.PI*TIRE_R)*60*E.ratios[g-1]*E.f
 function stepEngine(dt){
   var E=S.eng,v=S.vs,a=S.aLoad;
   S.revHold+=(S.revTarget-S.revHold)*Math.min(1,dt/(S.revTarget>S.revHold?0.25:0.4));
-  var aa=a>0?Math.max(a-0.2,0):Math.min(a+0.2,0); // dead zone: sensor jitter isn't throttle or regen
+  var dz=(calibrated()?0.2:0.45)*(SM()>2?1.5:1),aa=a>0?Math.max(a-dz,0):Math.min(a+dz,0); // dead zone: sensor jitter isn't throttle or regen
   var thr=clamp(aa/E.accel,0,1),offT=clamp(-aa/2.2,0,1);
   var cruise=v>2?0.12+Math.min(Math.pow(v/45,2),1)*0.35:0;
   var load=cruise*(1-offT)+thr*(1-cruise)-offT*0.9; // one smooth curve: regen, cruise, throttle
   var rpm;
-  if(v<0.6&&thr<0.05){ // parked / stopped: idle, free-rev with the button
+  if(v>1.5)S.moving=true;else if(v<0.7)S.moving=false; // GPS drifts a little when stopped; don't flip between idle and gear 1
+  if(!S.moving&&thr<0.05){ // parked / stopped: idle, free-rev with the button
     S.gear=0;rpm=E.idle+S.revHold*(E.red*0.88-E.idle);load=Math.max(load,S.revHold);
-    rpm+=Math.sin(performance.now()/180)*E.idle*0.015;
   }else{
     if(S.gear<1)S.gear=1;
     var n=E.ratios.length,r=rpmAt(v,S.gear);
@@ -321,11 +328,11 @@ function frame(t){
   if(S.demo)demoStep(dt);
   else{
     if(!calibrated()&&S.lastFix&&t-S.lastFix.t<2500)S.v=Math.max(0,S.v+S.aGPS*dt*0.8); // GPS-only: glide between fixes
-    if(S.pend){var sh=S.pend*Math.min(1,dt/0.5);S.v=Math.max(0,S.v+sh);S.pend-=sh;if(Math.abs(S.pend)<0.01)S.pend=0}
+    if(S.pend){var sh=S.pend*Math.min(1,dt/(0.5*SM()));S.v=Math.max(0,S.v+sh);S.pend-=sh;if(Math.abs(S.pend)<0.01)S.pend=0}
     var src=calibrated()?S.aF-S.bias:S.aGPS;
-    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/(src<S.aLoad?0.2:0.1)); // regen builds gradually
+    S.aLoad+=(src-S.aLoad)*Math.min(1,dt/((src<S.aLoad?0.2:0.1)*SM())); // regen builds gradually
   }
-  S.vs+=(S.v-S.vs)*Math.min(1,dt/0.15); // steady speed for pitch and display
+  S.vs+=(S.v-S.vs)*Math.min(1,dt/(0.15*SM())); // steady speed for pitch and display
   S.hist.push({t:t,v:S.v});while(S.hist.length&&t-S.hist[0].t>3000)S.hist.shift();
   stepEngine(dt);
   if(node)node.port.postMessage({rpm:S.rpm,load:S.load});
@@ -440,6 +447,8 @@ $("test").onclick=function(){
   say("Speed "+(S.v*3.6).toFixed(1)+" km/h · GPS accel "+S.aGPS.toFixed(2)+" · sensor accel "+S.aF.toFixed(2)+" m/s² · bias "+S.bias.toFixed(2)+" · forward axis "+f+" ("+S.cal+" locks)");
 };
 $("volume").oninput=function(){store("vol",+this.value);if(vol)vol.gain.setTargetAtTime(Math.pow(this.value/100,1.6),ctx.currentTime,0.05)};
+function setSmooth(n,save){S.smooth=n;document.querySelectorAll(".smooth button").forEach(function(b){b.setAttribute("aria-pressed",String(+b.dataset.s===n))});if(save)store("smooth",n)}
+document.querySelectorAll(".smooth button").forEach(function(b){b.onclick=function(){setSmooth(+b.dataset.s,true)}});
 $("units").onclick=function(){S.mph=!S.mph;store("mph",S.mph);this.textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H"};
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.running){keepAwake();if(ctx)ctx.resume()}});
 
@@ -448,6 +457,7 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
   var id=load("engine",null);S.eng=ENGINES.filter(function(E){return E.id===id})[0]||ENGINES[0];
   $("volume").value=load("vol",80);S.mph=!!load("mph",false);$("units").textContent=S.mph?"mph":"km/h";$("spdU").textContent=S.mph?"MPH":"KM/H";
   var f=load("fwd",null);if(f&&f.f){S.fwd=f.f;S.cal=f.c||2}
+  setSmooth(load("smooth",3),false);
   buildEngines();buildTicks();render();requestAnimationFrame(frame);
 })();
 </script>
